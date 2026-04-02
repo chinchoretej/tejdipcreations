@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — TejDipCreations Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)})();
+  </script>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="../index.html" class="logo">TejDip<span>Creations</span></a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="../index.html">Home</a></li>
+        <li><a href="../products.html">Shop</a></li>
+        <li><a href="index.html" class="active">Admin</a></li>
+      </ul>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">&#9790;</button>
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard -->
+  <section class="admin-dashboard">
+    <div class="container">
+      <div class="admin-header">
+        <h1>Admin Dashboard</h1>
+        <button class="btn-secondary btn-sm" id="logoutBtn">Logout</button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-tab="add-product">Add Product</button>
+        <button class="admin-tab" data-tab="manage-products">Products</button>
+        <button class="admin-tab" data-tab="orders">Orders</button>
+      </div>
+
+      <!-- Add Product Panel -->
+      <div class="admin-panel active" id="add-product">
+        <div class="add-product-form">
+          <h2>Add New Product</h2>
+          <form id="addProductForm">
+            <div class="form-group">
+              <label for="prodName">Product Name</label>
+              <input type="text" id="prodName" placeholder="e.g. Golden Nose Pin Set" required>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="prodCategory">Category</label>
+                <select id="prodCategory" required style="width:100%;padding:0.75rem 1rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;background:#fff;">
+                  <option value="">Select category</option>
+                  <option value="Nose Pins">Nose Pins</option>
+                  <option value="Hair Pins">Hair Pins</option>
+                  <option value="Decorative Plates">Decorative Plates</option>
+                  <option value="Pots">Pots</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="prodPrice">Price (&#8377;)</label>
+                <input type="number" id="prodPrice" placeholder="299" min="1" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="prodImage">Image URL</label>
+              <input type="url" id="prodImage" placeholder="https://example.com/image.jpg" required>
+            </div>
+            <div class="form-group">
+              <label for="prodImages">Additional Image URLs (comma-separated)</label>
+              <input type="text" id="prodImages" placeholder="https://img1.jpg, https://img2.jpg">
+            </div>
+            <div class="form-group">
+              <label for="prodVideo">Video URL (YouTube embed or direct)</label>
+              <input type="url" id="prodVideo" placeholder="https://youtube.com/embed/...">
+            </div>
+            <div class="form-group">
+              <label for="prodDesc">Description</label>
+              <textarea id="prodDesc" placeholder="Describe the product..." required></textarea>
+            </div>
+            <button type="submit" class="btn-primary" style="width:100%;text-align:center;">Add Product</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Manage Products Panel -->
+      <div class="admin-panel" id="manage-products">
+        <div class="products-grid" id="adminProductsGrid">
+          <div class="loader"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Orders Panel -->
+      <div class="admin-panel" id="orders">
+        <div class="orders-list" id="ordersContainer">
+          <div class="loader"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>&copy; 2026 <a href="../index.html">TejDipCreations</a>. All rights reserved.</p>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../js/theme.js"></script>
+  <script type="module" src="../js/firebase-config.js"></script>
+  <script type="module" src="../js/admin-dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop — TejDipCreations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)})();
+  </script>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">TejDip<span>Creations</span></a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html" class="active">Shop</a></li>
+        <li><a href="admin/index.html">Admin</a></li>
+      </ul>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">&#9790;</button>
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Header -->
+  <div class="page-header">
+    <h1>Our Collection</h1>
+    <p>Browse all handcrafted items</p>
+  </div>
+
+  <!-- Filter + Products -->
+  <section class="section">
+    <div class="container">
+      <div class="filter-bar" id="filterBar">
+        <button class="filter-btn active" data-category="all">All</button>
+        <button class="filter-btn" data-category="Nose Pins">Nose Pins</button>
+        <button class="filter-btn" data-category="Hair Pins">Hair Pins</button>
+        <button class="filter-btn" data-category="Decorative Plates">Decorative Plates</button>
+        <button class="filter-btn" data-category="Pots">Pots</button>
+      </div>
+      <div class="products-grid" id="productsGrid">
+        <div class="loader"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>&copy; 2026 <a href="index.html">TejDipCreations</a>. All rights reserved.</p>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/theme.js"></script>
+  <script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/products.js"></script>
+</body>
+</html>

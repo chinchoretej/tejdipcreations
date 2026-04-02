@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product — TejDipCreations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)})();
+  </script>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">TejDip<span>Creations</span></a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html" class="active">Shop</a></li>
+        <li><a href="admin/index.html">Admin</a></li>
+      </ul>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">&#9790;</button>
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Breadcrumb -->
+  <div class="container">
+    <div class="breadcrumb">
+      <a href="index.html">Home</a>
+      <span>&rsaquo;</span>
+      <a href="products.html">Shop</a>
+      <span>&rsaquo;</span>
+      <span id="breadcrumbName">Product</span>
+    </div>
+  </div>
+
+  <!-- Product Detail -->
+  <section class="product-detail">
+    <div class="container">
+      <div class="product-detail-grid" id="productDetail">
+        <div class="loader"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>&copy; 2026 <a href="index.html">TejDipCreations</a>. All rights reserved.</p>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/theme.js"></script>
+  <script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/product-detail.js"></script>
+</body>
+</html>
