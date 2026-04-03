@@ -19,30 +19,6 @@ export function initNavbar() {
       }
     });
   }
-  initTheme();
-}
-
-function initTheme() {
-  const btn = document.getElementById('themeToggle');
-  if (!btn) return;
-
-  const saved = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const theme = saved || (prefersDark ? 'dark' : 'light');
-
-  applyTheme(theme, btn);
-
-  btn.addEventListener('click', () => {
-    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    applyTheme(next, btn);
-    localStorage.setItem('theme', next);
-  });
-}
-
-function applyTheme(theme, btn) {
-  document.documentElement.setAttribute('data-theme', theme);
-  btn.innerHTML = theme === 'dark' ? '&#9788;' : '&#9790;';
-  btn.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
 }
 
 export function createProductCard(product, basePath = '') {
