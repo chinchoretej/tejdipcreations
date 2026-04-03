@@ -29,6 +29,7 @@ tabs.forEach(tab => {
 
     if (tab.dataset.tab === 'manage-products') loadAdminProducts();
     if (tab.dataset.tab === 'orders') loadOrders();
+    if (tab.dataset.tab === 'trash') loadTrash();
   });
 });
 
@@ -182,6 +183,7 @@ async function loadOrders() {
         + '<label style="font-size:0.82rem;font-weight:600;color:var(--text-light);">Status:</label>'
         + selectHTML
         + waBtnHTML
+        + '<button class="trash-btn" data-id="' + docSnap.id + '" style="background:#e74c3c;color:#fff;padding:0.4rem 1rem;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Delete</button>'
         + '</div>';
       container.appendChild(card);
     });
@@ -223,8 +225,138 @@ async function loadOrders() {
         window.open('https://wa.me/91' + phone + '?text=' + encodeURIComponent(msg), '_blank');
       });
     });
+    // Delete (move to trash) buttons
+    container.querySelectorAll('.trash-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        if (!confirm('Move this order to trash?')) return;
+        var orderId = btn.getAttribute('data-id');
+        try {
+          var orderSnap = await getDocs(query(collection(db, 'orders')));
+          var orderData = null;
+          orderSnap.forEach(function(d) {
+            if (d.id === orderId) orderData = d.data();
+          });
+          if (orderData) {
+            orderData.deletedAt = serverTimestamp();
+            await addDoc(collection(db, 'trash'), orderData);
+          }
+          await deleteDoc(doc(db, 'orders', orderId));
+          showToast('Order moved to trash', 'success');
+          loadOrders();
+        } catch (err) {
+          console.error('Trash error:', err);
+          showToast('Failed to delete order', 'error');
+        }
+      });
+    });
+
   } catch (err) {
     console.error('Error loading orders:', err);
     container.innerHTML = '<div class="empty-state"><p>Error loading orders.</p></div>';
+  }
+}
+
+// ---------- Load trash ----------
+async function loadTrash() {
+  var container = document.getElementById('trashContainer');
+  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+
+  try {
+    var snapshot = await getDocs(query(collection(db, 'trash'), orderBy('deletedAt', 'desc')));
+
+    container.innerHTML = '';
+
+    if (snapshot.empty) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">&#128465;</div><p>Trash is empty.</p></div>';
+      return;
+    }
+
+    var thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    var hasItems = false;
+
+    snapshot.forEach(function(docSnap) {
+      var o = docSnap.data();
+      var deletedDate = o.deletedAt?.toDate ? o.deletedAt.toDate() : new Date();
+
+      // Auto-remove items older than 30 days
+      if (deletedDate < thirtyDaysAgo) {
+        deleteDoc(doc(db, 'trash', docSnap.id));
+        return;
+      }
+
+      hasItems = true;
+
+      var deletedStr = deletedDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      var orderDate = o.createdAt?.toDate?.()
+        ? o.createdAt.toDate().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : '';
+
+      var card = document.createElement('div');
+      card.className = 'order-card';
+      card.style.opacity = '0.75';
+      card.innerHTML = '<div class="order-header">'
+        + '<span class="order-id" style="color:#e74c3c;">Deleted</span>'
+        + '<span class="order-date">Deleted: ' + deletedStr + '</span>'
+        + '</div>'
+        + '<div class="order-customer"><strong>' + (o.customerName || '') + '</strong> — ' + (o.customerPhone || '') + '</div>'
+        + '<div class="order-product">' + (o.productName || '') + ' — &#8377;' + (o.productPrice || '') + '</div>'
+        + '<div style="font-size:0.82rem;color:var(--text-light);margin-top:0.3rem;">' + (o.customerAddress || '') + '</div>'
+        + (orderDate ? '<div style="font-size:0.78rem;color:var(--text-light);margin-top:0.2rem;">Ordered: ' + orderDate + '</div>' : '')
+        + '<div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.8rem;flex-wrap:wrap;">'
+        + '<button class="restore-btn" data-id="' + docSnap.id + '" style="background:var(--success);color:#fff;padding:0.4rem 1rem;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Restore</button>'
+        + '<button class="perm-delete-btn" data-id="' + docSnap.id + '" style="background:#e74c3c;color:#fff;padding:0.4rem 1rem;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Delete Forever</button>'
+        + '</div>';
+      container.appendChild(card);
+    });
+
+    if (!hasItems) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">&#128465;</div><p>Trash is empty.</p></div>';
+      return;
+    }
+
+    // Restore buttons
+    container.querySelectorAll('.restore-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        var trashId = btn.getAttribute('data-id');
+        try {
+          var trashSnap = await getDocs(collection(db, 'trash'));
+          var trashData = null;
+          trashSnap.forEach(function(d) {
+            if (d.id === trashId) trashData = d.data();
+          });
+          if (trashData) {
+            delete trashData.deletedAt;
+            await addDoc(collection(db, 'orders'), trashData);
+          }
+          await deleteDoc(doc(db, 'trash', trashId));
+          showToast('Order restored!', 'success');
+          loadTrash();
+        } catch (err) {
+          console.error('Restore error:', err);
+          showToast('Failed to restore', 'error');
+        }
+      });
+    });
+
+    // Permanent delete buttons
+    container.querySelectorAll('.perm-delete-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        if (!confirm('Permanently delete this order? This cannot be undone.')) return;
+        try {
+          await deleteDoc(doc(db, 'trash', btn.getAttribute('data-id')));
+          showToast('Order permanently deleted', 'success');
+          loadTrash();
+        } catch (err) {
+          console.error('Permanent delete error:', err);
+          showToast('Failed to delete', 'error');
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error('Error loading trash:', err);
+    container.innerHTML = '<div class="empty-state"><p>Error loading trash.</p></div>';
   }
 }

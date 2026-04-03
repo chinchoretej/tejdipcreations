@@ -42,6 +42,7 @@
         <button class="admin-tab active" data-tab="add-product">Add Product</button>
         <button class="admin-tab" data-tab="manage-products">Products</button>
         <button class="admin-tab" data-tab="orders">Orders</button>
+        <button class="admin-tab" data-tab="trash">Trash</button>
       </div>
 
       <!-- Add Product Panel -->
@@ -103,6 +104,14 @@
           <div class="loader"><div class="spinner"></div></div>
         </div>
       </div>
+
+      <!-- Trash Panel -->
+      <div class="admin-panel" id="trash">
+        <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:1rem;">Deleted orders are kept for 30 days, then auto-removed.</p>
+        <div class="orders-list" id="trashContainer">
+          <div class="loader"><div class="spinner"></div></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -115,6 +124,6 @@
 
   <script src="../js/theme.js"></script>
   <script type="module" src="../js/firebase-config.js"></script>
-  <script type="module" src="../js/admin-dashboard.js?v=3"></script>
+  <script type="module" src="../js/admin-dashboard.js?v=4"></script>
 </body>
 </html>
