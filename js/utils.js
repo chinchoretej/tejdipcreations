@@ -32,7 +32,10 @@ export function createProductCard(product, basePath = '') {
       <h3>${product.name}</h3>
       <p class="card-desc">${product.description || ''}</p>
       <div class="card-footer">
-        <span class="price">&#8377;${product.price}</span>
+        <div>
+          <span class="price">&#8377;${product.price}</span>
+          <div style="font-size:0.7rem;color:var(--text-light);">+ delivery charges</div>
+        </div>
         <a href="${basePath}product.html?id=${product.id}" class="btn-primary btn-sm btn-view">View</a>
       </div>
     </div>

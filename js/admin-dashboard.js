@@ -159,12 +159,15 @@ async function loadOrders() {
       card.className = 'order-card';
 
       const status = o.status || 'pending';
-      const isConfirmed = status === 'confirmed';
 
-      var confirmBtnHTML = '';
-      if (!isConfirmed) {
-        confirmBtnHTML = '<button class="confirm-btn" data-id="' + docSnap.id + '" style="background:#b5838d;color:#fff;padding:0.4rem 1rem;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Confirm</button>';
+      var statusOptions = ['pending', 'Payment Received', 'Payment Not Received', 'Shipped'];
+      var selectHTML = '<select class="status-select" data-id="' + docSnap.id + '" style="padding:0.4rem 0.6rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.85rem;font-weight:600;background:var(--input-bg);color:var(--text);cursor:pointer;">';
+      for (var i = 0; i < statusOptions.length; i++) {
+        var opt = statusOptions[i];
+        var selected = (status === opt) ? ' selected' : '';
+        selectHTML += '<option value="' + opt + '"' + selected + '>' + opt + '</option>';
       }
+      selectHTML += '</select>';
 
       var waBtnHTML = '<button class="wa-btn" data-phone="' + (o.customerPhone || '') + '" data-name="' + (o.customerName || '') + '" data-product="' + (o.productName || '') + '" data-price="' + (o.productPrice || '') + '" data-status="' + status + '" style="background:#25D366;color:#fff;padding:0.4rem 1rem;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">WhatsApp</button>';
 
@@ -176,36 +179,48 @@ async function loadOrders() {
         + '<div class="order-product">' + o.productName + ' — &#8377;' + o.productPrice + '</div>'
         + '<div style="font-size:0.82rem;color:var(--text-light);margin-top:0.3rem;">' + o.customerAddress + '</div>'
         + '<div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.8rem;flex-wrap:wrap;">'
-        + '<span class="order-status ' + status + '" style="margin:0;">' + status + '</span>'
-        + confirmBtnHTML
+        + '<label style="font-size:0.82rem;font-weight:600;color:var(--text-light);">Status:</label>'
+        + selectHTML
         + waBtnHTML
         + '</div>';
       container.appendChild(card);
     });
 
-    // Confirm order buttons
-    container.querySelectorAll('.confirm-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+    // Status dropdown change
+    container.querySelectorAll('.status-select').forEach(function(sel) {
+      sel.addEventListener('change', async function() {
+        var orderId = this.getAttribute('data-id');
+        var newStatus = this.value;
         try {
-          await updateDoc(doc(db, 'orders', btn.dataset.id), { status: 'confirmed' });
-          showToast('Order confirmed!', 'success');
-          loadOrders();
+          await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
+          showToast('Status updated to: ' + newStatus, 'success');
         } catch (err) {
-          console.error('Confirm error:', err);
-          showToast('Failed to confirm', 'error');
+          console.error('Status update error:', err);
+          showToast('Failed to update status', 'error');
+          loadOrders();
         }
       });
     });
 
     // WhatsApp customer buttons
-    container.querySelectorAll('.wa-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const phone = btn.dataset.phone.replace(/\D/g, '');
-        const isConfirmed = btn.dataset.status === 'confirmed';
-        const msg = isConfirmed
-          ? `Hi ${btn.dataset.name}! ✅\n\nYour order for *${btn.dataset.product}* (₹${btn.dataset.price}) has been *confirmed*!\n\nWe'll ship it soon. Thank you for shopping with TejDipCreations! 🙏`
-          : `Hi ${btn.dataset.name}!\n\nRegarding your order for *${btn.dataset.product}* (₹${btn.dataset.price}) — we're checking your payment. We'll update you shortly.\n\n— TejDipCreations`;
-        window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    container.querySelectorAll('.wa-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var phone = btn.getAttribute('data-phone').replace(/\D/g, '');
+        var name = btn.getAttribute('data-name');
+        var product = btn.getAttribute('data-product');
+        var price = btn.getAttribute('data-price');
+        var curStatus = btn.closest('.order-card').querySelector('.status-select').value;
+        var msg = '';
+        if (curStatus === 'Payment Received') {
+          msg = 'Hi ' + name + '! ✅\n\nYour payment for *' + product + '* (₹' + price + ') has been received!\n\nWe will share the delivery charges shortly and ship your order. Thank you for shopping with TejDipCreations! 🙏';
+        } else if (curStatus === 'Shipped') {
+          msg = 'Hi ' + name + '! 📦\n\nGreat news! Your order for *' + product + '* (₹' + price + ') has been *shipped*!\n\nYou will receive it soon. Thank you for shopping with TejDipCreations! 🙏';
+        } else if (curStatus === 'Payment Not Received') {
+          msg = 'Hi ' + name + '!\n\nWe have not yet received your payment for *' + product + '* (₹' + price + ').\n\nPlease complete the payment via UPI and let us know. Thank you!\n\n— TejDipCreations';
+        } else {
+          msg = 'Hi ' + name + '!\n\nRegarding your order for *' + product + '* (₹' + price + ') — we are checking your payment. We will update you shortly.\n\n— TejDipCreations';
+        }
+        window.open('https://wa.me/91' + phone + '?text=' + encodeURIComponent(msg), '_blank');
       });
     });
   } catch (err) {
