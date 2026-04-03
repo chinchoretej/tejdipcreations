@@ -158,9 +158,9 @@ async function loadOrders() {
       const card = document.createElement('div');
       card.className = 'order-card';
 
-      const status = o.status || 'pending';
+      const status = o.status || 'Pending';
 
-      var statusOptions = ['pending', 'Payment Received', 'Payment Not Received', 'Shipped'];
+      var statusOptions = ['Pending', 'Payment Received', 'Payment Not Received', 'Shipped'];
       var selectHTML = '<select class="status-select" data-id="' + docSnap.id + '" style="padding:0.4rem 0.6rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.85rem;font-weight:600;background:var(--input-bg);color:var(--text);cursor:pointer;">';
       for (var i = 0; i < statusOptions.length; i++) {
         var opt = statusOptions[i];

@@ -80,7 +80,7 @@ if (checkoutForm) {
         customerName: name,
         customerPhone: phone,
         customerAddress: address,
-        status: 'pending',
+        status: 'Pending',
         createdAt: serverTimestamp()
       });
 
