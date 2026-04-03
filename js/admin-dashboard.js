@@ -160,26 +160,26 @@ async function loadOrders() {
 
       const status = o.status || 'pending';
       const isConfirmed = status === 'confirmed';
-      card.innerHTML = `
-        <div class="order-header">
-          <span class="order-id">#${docSnap.id.slice(0, 8).toUpperCase()}</span>
-          <span class="order-date">${date}</span>
-        </div>
-        <div class="order-customer"><strong>${o.customerName}</strong> — ${o.customerPhone}</div>
-        <div class="order-product">${o.productName} — &#8377;${o.productPrice}</div>
-        <div class="order-customer" style="font-size:0.82rem;color:var(--text-light);margin-top:0.3rem;">
-          ${o.customerAddress}
-        </div>
-        <div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.6rem;flex-wrap:wrap;">
-          <span class="order-status ${status}" style="margin:0;">${status}</span>
-          ${!isConfirmed ? `<button class="btn-primary btn-sm confirm-btn" data-id="${docSnap.id}">Confirm</button>` : ''}
-          <button class="btn-sm wa-btn" data-phone="${o.customerPhone}" data-name="${o.customerName}"
-                  data-product="${o.productName}" data-price="${o.productPrice}" data-status="${status}"
-                  style="background:#25D366;color:#fff;border-radius:var(--radius-sm);font-weight:600;">
-            WhatsApp
-          </button>
-        </div>
-      `;
+
+      var confirmBtnHTML = '';
+      if (!isConfirmed) {
+        confirmBtnHTML = '<button class="confirm-btn" data-id="' + docSnap.id + '" style="background:#b5838d;color:#fff;padding:0.4rem 1rem;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Confirm</button>';
+      }
+
+      var waBtnHTML = '<button class="wa-btn" data-phone="' + (o.customerPhone || '') + '" data-name="' + (o.customerName || '') + '" data-product="' + (o.productName || '') + '" data-price="' + (o.productPrice || '') + '" data-status="' + status + '" style="background:#25D366;color:#fff;padding:0.4rem 1rem;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">WhatsApp</button>';
+
+      card.innerHTML = '<div class="order-header">'
+        + '<span class="order-id">#' + docSnap.id.slice(0, 8).toUpperCase() + '</span>'
+        + '<span class="order-date">' + date + '</span>'
+        + '</div>'
+        + '<div class="order-customer"><strong>' + o.customerName + '</strong> — ' + o.customerPhone + '</div>'
+        + '<div class="order-product">' + o.productName + ' — &#8377;' + o.productPrice + '</div>'
+        + '<div style="font-size:0.82rem;color:var(--text-light);margin-top:0.3rem;">' + o.customerAddress + '</div>'
+        + '<div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.8rem;flex-wrap:wrap;">'
+        + '<span class="order-status ' + status + '" style="margin:0;">' + status + '</span>'
+        + confirmBtnHTML
+        + waBtnHTML
+        + '</div>';
       container.appendChild(card);
     });
 
