@@ -73,7 +73,7 @@ if (checkoutForm) {
     }
 
     try {
-      await addDoc(collection(db, 'orders'), {
+      const orderRef = await addDoc(collection(db, 'orders'), {
         productId: currentProduct.id,
         productName: currentProduct.name,
         productPrice: currentProduct.price,
@@ -87,6 +87,21 @@ if (checkoutForm) {
       checkoutContent.style.display = 'none';
       confirmationMsg.classList.add('show');
       showToast('Order placed successfully!', 'success');
+
+      // Auto WhatsApp message to admin
+      const orderId = orderRef.id.slice(0, 8).toUpperCase();
+      const msg = `Hi TejDipCreations! 🛒\n\n`
+        + `*New Order #${orderId}*\n\n`
+        + `*Product:* ${currentProduct.name}\n`
+        + `*Price:* ₹${currentProduct.price}\n\n`
+        + `*Customer:* ${name}\n`
+        + `*Phone:* ${phone}\n`
+        + `*Address:* ${address}\n\n`
+        + `Payment done via UPI. Please confirm my order. 🙏`;
+
+      const waURL = `https://wa.me/919168140277?text=${encodeURIComponent(msg)}`;
+
+      setTimeout(() => { window.open(waURL, '_blank'); }, 1500);
     } catch (err) {
       console.error('Error placing order:', err);
       showToast('Failed to place order. Try again.', 'error');

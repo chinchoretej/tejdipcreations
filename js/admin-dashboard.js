@@ -1,7 +1,7 @@
 // Admin dashboard logic
 import { db, auth } from './firebase-config.js';
 import {
-  collection, addDoc, getDocs, deleteDoc, doc,
+  collection, addDoc, getDocs, deleteDoc, doc, updateDoc,
   query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -157,6 +157,8 @@ async function loadOrders() {
 
       const card = document.createElement('div');
       card.className = 'order-card';
+
+      const isPending = o.status === 'pending';
       card.innerHTML = `
         <div class="order-header">
           <span class="order-id">#${docSnap.id.slice(0, 8).toUpperCase()}</span>
@@ -167,9 +169,43 @@ async function loadOrders() {
         <div class="order-customer" style="font-size:0.82rem;color:var(--text-light);margin-top:0.3rem;">
           ${o.customerAddress}
         </div>
-        <span class="order-status ${o.status}">${o.status}</span>
+        <div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.6rem;flex-wrap:wrap;">
+          <span class="order-status ${o.status}" style="margin:0;">${o.status}</span>
+          ${isPending ? `<button class="btn-primary btn-sm confirm-btn" data-id="${docSnap.id}">Confirm</button>` : ''}
+          <button class="btn-sm wa-btn" data-phone="${o.customerPhone}" data-name="${o.customerName}"
+                  data-product="${o.productName}" data-price="${o.productPrice}" data-status="${o.status}"
+                  style="background:#25D366;color:#fff;border-radius:var(--radius-sm);font-weight:600;">
+            WhatsApp
+          </button>
+        </div>
       `;
       container.appendChild(card);
+    });
+
+    // Confirm order buttons
+    container.querySelectorAll('.confirm-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await updateDoc(doc(db, 'orders', btn.dataset.id), { status: 'confirmed' });
+          showToast('Order confirmed!', 'success');
+          loadOrders();
+        } catch (err) {
+          console.error('Confirm error:', err);
+          showToast('Failed to confirm', 'error');
+        }
+      });
+    });
+
+    // WhatsApp customer buttons
+    container.querySelectorAll('.wa-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const phone = btn.dataset.phone.replace(/\D/g, '');
+        const isConfirmed = btn.dataset.status === 'confirmed';
+        const msg = isConfirmed
+          ? `Hi ${btn.dataset.name}! ✅\n\nYour order for *${btn.dataset.product}* (₹${btn.dataset.price}) has been *confirmed*!\n\nWe'll ship it soon. Thank you for shopping with TejDipCreations! 🙏`
+          : `Hi ${btn.dataset.name}!\n\nRegarding your order for *${btn.dataset.product}* (₹${btn.dataset.price}) — we're checking your payment. We'll update you shortly.\n\n— TejDipCreations`;
+        window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+      });
     });
   } catch (err) {
     console.error('Error loading orders:', err);
