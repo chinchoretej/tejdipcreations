@@ -158,7 +158,8 @@ async function loadOrders() {
       const card = document.createElement('div');
       card.className = 'order-card';
 
-      const isPending = o.status === 'pending';
+      const status = o.status || 'pending';
+      const isConfirmed = status === 'confirmed';
       card.innerHTML = `
         <div class="order-header">
           <span class="order-id">#${docSnap.id.slice(0, 8).toUpperCase()}</span>
@@ -170,10 +171,10 @@ async function loadOrders() {
           ${o.customerAddress}
         </div>
         <div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.6rem;flex-wrap:wrap;">
-          <span class="order-status ${o.status}" style="margin:0;">${o.status}</span>
-          ${isPending ? `<button class="btn-primary btn-sm confirm-btn" data-id="${docSnap.id}">Confirm</button>` : ''}
+          <span class="order-status ${status}" style="margin:0;">${status}</span>
+          ${!isConfirmed ? `<button class="btn-primary btn-sm confirm-btn" data-id="${docSnap.id}">Confirm</button>` : ''}
           <button class="btn-sm wa-btn" data-phone="${o.customerPhone}" data-name="${o.customerName}"
-                  data-product="${o.productName}" data-price="${o.productPrice}" data-status="${o.status}"
+                  data-product="${o.productName}" data-price="${o.productPrice}" data-status="${status}"
                   style="background:#25D366;color:#fff;border-radius:var(--radius-sm);font-weight:600;">
             WhatsApp
           </button>
