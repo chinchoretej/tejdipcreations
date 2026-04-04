@@ -306,6 +306,24 @@ input, textarea, select {
   padding: 3rem 0;
 }
 
+.section-categories {
+  position: relative;
+  background: url('../assets/background-1.jpg') center/cover no-repeat;
+}
+
+.section-categories::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  opacity: 0.5;
+}
+
+.section-categories > .container {
+  position: relative;
+  z-index: 1;
+}
+
 .section-title {
   text-align: center;
   font-size: 1.8rem;
