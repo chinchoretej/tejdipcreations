@@ -8,17 +8,17 @@ initNavbar();
 const CATEGORIES = [
   {
     name: 'Jewelry',
-    image: 'assets/Jwelery.png',
+    image: 'assets/Jwelery.jpg',
     desc: 'Earrings, Necklaces, Bracelets, Bangles & Hair Accessories'
   },
   {
     name: 'Pooja Essentials',
-    image: 'assets/Pooja Essential.png',
+    image: 'assets/Pooja Essential.jpg',
     desc: 'Decorative Plates, Kalash & Saptapadi Supari'
   },
   {
     name: 'Handmade Crafts',
-    image: 'assets/Handmade arts.png',
+    image: 'assets/Handmade arts.jpg',
     desc: 'Sticks Decor, Wall Art & Mini Crafts'
   }
 ];
