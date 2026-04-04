@@ -48,6 +48,7 @@ if (addForm) {
 
     const name = document.getElementById('prodName').value.trim();
     const category = document.getElementById('prodCategory').value;
+    const subcategory = document.getElementById('prodSubcategory').value;
     const price = Number(document.getElementById('prodPrice').value);
     const image = document.getElementById('prodImage').value.trim();
     const imagesRaw = document.getElementById('prodImages').value.trim();
@@ -62,6 +63,7 @@ if (addForm) {
       await addDoc(collection(db, 'products'), {
         name,
         category,
+        subcategory,
         price,
         image,
         images,
@@ -104,7 +106,7 @@ async function loadAdminProducts() {
       card.setAttribute('data-id', docSnap.id);
       card.innerHTML = '<img src="' + (p.image || '') + '" alt="' + (p.name || '') + '" class="card-img" onerror="this.src=\'https://placehold.co/400x300/e8c8ce/6d6875?text=No+Image\'">'
         + '<div class="card-body">'
-        + '<div class="card-category">' + (p.category || '') + '</div>'
+        + '<div class="card-category">' + (p.category || '') + (p.subcategory ? ' &rsaquo; ' + p.subcategory : '') + '</div>'
         + '<h3>' + (p.name || '') + '</h3>'
         + '<div style="font-size:0.85rem;color:var(--text-light);margin-bottom:0.5rem;">&#8377;' + (p.price || 0) + '</div>'
         + '<div style="display:flex;gap:0.5rem;">'
@@ -379,11 +381,10 @@ async function openEditModal(productId) {
     overlay.id = 'editOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
-    var catSnapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
-    var catOpts = '<option value="">Select category</option>';
-    catSnapshot.forEach(function(d) {
-      var cName = d.data().name;
-      catOpts += '<option value="' + cName + '"' + (p.category === cName ? ' selected' : '') + '>' + cName + '</option>';
+    await fetchAllCategories();
+    var catOpts = '<option value="">Select Category</option>';
+    allCategoriesCache.forEach(function(c) {
+      catOpts += '<option value="' + c.name + '"' + (p.category === c.name ? ' selected' : '') + '>' + c.name + '</option>';
     });
 
     var inputStyle = 'width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--input-bg);color:var(--text);';
@@ -392,6 +393,7 @@ async function openEditModal(productId) {
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><h2 style="font-size:1.2rem;">Edit Product</h2><button id="editClose" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text);">&#10005;</button></div>'
       + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Name</label><input id="editName" value="' + (p.name || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
       + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Category</label><select id="editCategory" style="' + inputStyle + '">' + catOpts + '</select></div>'
+      + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Subcategory</label><select id="editSubcategory" style="' + inputStyle + '"><option value="">Select Subcategory</option></select></div>'
       + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Price</label><input id="editPrice" type="number" value="' + (p.price || '') + '" style="' + inputStyle + '"></div>'
       + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Image URL</label><input id="editImage" value="' + (p.image || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
       + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Video URL</label><input id="editVideo" value="' + (p.video || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
@@ -401,6 +403,14 @@ async function openEditModal(productId) {
 
     document.body.appendChild(overlay);
 
+    // Populate subcategory dropdown for the currently selected category
+    updateSubcategoryDropdown(p.category, 'editSubcategory', p.subcategory);
+
+    // When category changes, reload subcategories
+    document.getElementById('editCategory').addEventListener('change', function() {
+      updateSubcategoryDropdown(this.value, 'editSubcategory');
+    });
+
     document.getElementById('editClose').addEventListener('click', function() { overlay.remove(); });
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
 
@@ -409,6 +419,7 @@ async function openEditModal(productId) {
         await updateDoc(doc(db, 'products', productId), {
           name: document.getElementById('editName').value.trim(),
           category: document.getElementById('editCategory').value,
+          subcategory: document.getElementById('editSubcategory').value,
           price: Number(document.getElementById('editPrice').value),
           image: document.getElementById('editImage').value.trim(),
           video: document.getElementById('editVideo').value.trim() || null,
@@ -428,59 +439,202 @@ async function openEditModal(productId) {
   }
 }
 
-// ---------- Categories CRUD ----------
+// ---------- Categories with Subcategories ----------
+
+var allCategoriesCache = [];
+
+var DEFAULT_CATEGORIES = [
+  { name: 'Jewelry', image: 'assets/Jwelery.jpg', description: 'Earrings, Necklaces, Bracelets, Bangles & Hair Accessories', subcategories: ['Earrings', 'Necklaces', 'Bracelets', 'Bangles', 'Hair Accessories'] },
+  { name: 'Pooja Essentials', image: 'assets/Pooja Essential.jpg', description: 'Decorative Plates, Kalash & Saptapadi Supari', subcategories: ['Decorative Plates', 'Kalash', 'Saptapadi Supari'] },
+  { name: 'Handmade Crafts', image: 'assets/Handmade arts.jpg', description: 'Sticks Decor, Wall Art & Mini Crafts', subcategories: ['Sticks Decor', 'Wall Art', 'Mini Crafts'] }
+];
+
+async function seedDefaultCategories() {
+  try {
+    var snapshot = await getDocs(collection(db, 'categories'));
+    if (!snapshot.empty) return;
+    for (var i = 0; i < DEFAULT_CATEGORIES.length; i++) {
+      var cat = DEFAULT_CATEGORIES[i];
+      await addDoc(collection(db, 'categories'), {
+        name: cat.name,
+        image: cat.image,
+        description: cat.description,
+        subcategories: cat.subcategories,
+        createdAt: serverTimestamp()
+      });
+    }
+  } catch (err) {
+    console.error('Seed error:', err);
+  }
+}
+
+async function fetchAllCategories() {
+  var snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+  allCategoriesCache = [];
+  snapshot.forEach(function(d) {
+    allCategoriesCache.push({ id: d.id, ...d.data() });
+  });
+  return allCategoriesCache;
+}
+
 async function loadCategoryDropdowns() {
   try {
-    var snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+    var cats = await fetchAllCategories();
     var select = document.getElementById('prodCategory');
     if (select) {
       var current = select.value;
-      select.innerHTML = '<option value="">Select category</option>';
-      snapshot.forEach(function(d) {
+      select.innerHTML = '<option value="">Select Category</option>';
+      cats.forEach(function(c) {
         var opt = document.createElement('option');
-        opt.value = d.data().name;
-        opt.textContent = d.data().name;
+        opt.value = c.name;
+        opt.textContent = c.name;
         select.appendChild(opt);
       });
       if (current) select.value = current;
+      updateSubcategoryDropdown(select.value);
     }
   } catch (err) {
     console.error('Error loading categories:', err);
   }
 }
 
-// Load categories into dropdown on page load
-loadCategoryDropdowns();
+function updateSubcategoryDropdown(categoryName, targetSelectId, currentValue) {
+  var selId = targetSelectId || 'prodSubcategory';
+  var subSelect = document.getElementById(selId);
+  if (!subSelect) return;
+  subSelect.innerHTML = '<option value="">Select Subcategory</option>';
+  var cat = allCategoriesCache.find(function(c) { return c.name === categoryName; });
+  if (cat && cat.subcategories && cat.subcategories.length > 0) {
+    cat.subcategories.forEach(function(sub) {
+      var opt = document.createElement('option');
+      opt.value = sub;
+      opt.textContent = sub;
+      if (currentValue && currentValue === sub) opt.selected = true;
+      subSelect.appendChild(opt);
+    });
+  }
+}
+
+// Category -> Subcategory dependency for Add Product form
+var prodCatSelect = document.getElementById('prodCategory');
+if (prodCatSelect) {
+  prodCatSelect.addEventListener('change', function() {
+    updateSubcategoryDropdown(this.value);
+  });
+}
+
+// Seed defaults then load dropdowns
+seedDefaultCategories().then(function() {
+  loadCategoryDropdowns();
+});
 
 async function loadCategories() {
   var container = document.getElementById('categoriesList');
   container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
 
   try {
-    var snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+    var cats = await fetchAllCategories();
     container.innerHTML = '';
 
-    if (snapshot.empty) {
-      container.innerHTML = '<div class="empty-state"><p>No categories yet. Add one above.</p></div>';
+    if (cats.length === 0) {
+      container.innerHTML = '<div class="empty-state"><p>No Categories Yet. Add One Above.</p></div>';
       return;
     }
 
-    snapshot.forEach(function(docSnap) {
-      var c = docSnap.data();
-      var row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:0.8rem;padding:0.8rem 1rem;background:var(--bg-card);border-radius:8px;box-shadow:var(--shadow);margin-bottom:0.6rem;';
+    cats.forEach(function(c) {
+      var card = document.createElement('div');
+      card.style.cssText = 'background:var(--bg-card);border-radius:10px;box-shadow:var(--shadow);padding:1rem;margin-bottom:1rem;';
 
-      var imgThumb = c.image ? '<img src="' + c.image + '" style="width:40px;height:40px;border-radius:6px;object-fit:cover;">' : '';
-      var descText = c.description ? '<span style="font-size:0.8rem;color:var(--text-light);display:block;">' + c.description + '</span>' : '';
+      var imgThumb = c.image ? '<img src="' + c.image + '" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;">' : '';
+      var descText = c.description ? '<span style="font-size:0.78rem;color:var(--text-light);display:block;">' + c.description + '</span>' : '';
 
-      row.innerHTML = imgThumb
-        + '<div style="flex:1;"><span style="font-weight:600;font-size:0.95rem;">' + c.name + '</span>' + descText + '</div>'
-        + '<button class="cat-edit" data-id="' + docSnap.id + '" style="background:var(--primary);color:#fff;padding:0.3rem 0.8rem;border:none;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;">Edit</button>'
-        + '<button class="cat-delete" data-id="' + docSnap.id + '" style="background:#e74c3c;color:#fff;padding:0.3rem 0.6rem;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;">&#10005;</button>';
-      container.appendChild(row);
+      var headerHTML = '<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.6rem;">'
+        + imgThumb
+        + '<div style="flex:1;"><span style="font-weight:700;font-size:1rem;">' + c.name + '</span>' + descText + '</div>'
+        + '<button class="cat-edit" data-id="' + c.id + '" style="background:var(--primary);color:#fff;padding:0.3rem 0.7rem;border:none;border-radius:6px;font-size:0.78rem;font-weight:600;cursor:pointer;">Edit</button>'
+        + '<button class="cat-delete" data-id="' + c.id + '" style="background:#e74c3c;color:#fff;padding:0.3rem 0.5rem;border:none;border-radius:6px;font-size:0.78rem;cursor:pointer;">&#10005;</button>'
+        + '</div>';
+
+      var subs = c.subcategories || [];
+      var subsHTML = '<div style="padding-left:0.5rem;">'
+        + '<div style="font-size:0.82rem;font-weight:600;color:var(--text-light);margin-bottom:0.4rem;">Subcategories:</div>';
+
+      if (subs.length === 0) {
+        subsHTML += '<div style="font-size:0.8rem;color:var(--text-light);font-style:italic;">None added yet</div>';
+      } else {
+        subs.forEach(function(sub) {
+          subsHTML += '<div style="display:inline-flex;align-items:center;gap:0.3rem;background:var(--bg);padding:0.25rem 0.6rem;border-radius:20px;margin:0.2rem 0.3rem 0.2rem 0;font-size:0.82rem;">'
+            + '<span>' + sub + '</span>'
+            + '<button class="sub-delete" data-cat-id="' + c.id + '" data-sub="' + sub.replace(/"/g, '&quot;') + '" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:0.9rem;padding:0;line-height:1;">&#10005;</button>'
+            + '</div>';
+        });
+      }
+
+      subsHTML += '<div style="margin-top:0.5rem;display:flex;gap:0.5rem;align-items:center;">'
+        + '<input class="sub-input" data-cat-id="' + c.id + '" placeholder="New subcategory" style="flex:1;padding:0.4rem 0.6rem;border:1.5px solid var(--border);border-radius:6px;font-size:0.82rem;background:var(--input-bg);color:var(--text);">'
+        + '<button class="sub-add" data-cat-id="' + c.id + '" style="background:var(--primary);color:#fff;padding:0.35rem 0.8rem;border:none;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;">Add</button>'
+        + '</div></div>';
+
+      card.innerHTML = headerHTML + subsHTML;
+      container.appendChild(card);
     });
 
-    // Edit category — opens a small modal
+    // Add subcategory
+    container.querySelectorAll('.sub-add').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        var catId = btn.getAttribute('data-cat-id');
+        var input = container.querySelector('.sub-input[data-cat-id="' + catId + '"]');
+        var val = input.value.trim();
+        if (!val) return;
+        var cat = allCategoriesCache.find(function(c) { return c.id === catId; });
+        if (!cat) return;
+        var subs = cat.subcategories || [];
+        if (subs.includes(val)) { showToast('Subcategory already exists', 'error'); return; }
+        subs.push(val);
+        try {
+          await updateDoc(doc(db, 'categories', catId), { subcategories: subs });
+          showToast('Subcategory added!', 'success');
+          loadCategories();
+          loadCategoryDropdowns();
+        } catch (err) {
+          console.error('Add sub error:', err);
+          showToast('Failed to add subcategory', 'error');
+        }
+      });
+    });
+
+    // Also allow pressing Enter in the subcategory input
+    container.querySelectorAll('.sub-input').forEach(function(input) {
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          var catId = input.getAttribute('data-cat-id');
+          container.querySelector('.sub-add[data-cat-id="' + catId + '"]').click();
+        }
+      });
+    });
+
+    // Delete subcategory
+    container.querySelectorAll('.sub-delete').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        var catId = btn.getAttribute('data-cat-id');
+        var subName = btn.getAttribute('data-sub');
+        var cat = allCategoriesCache.find(function(c) { return c.id === catId; });
+        if (!cat) return;
+        var subs = (cat.subcategories || []).filter(function(s) { return s !== subName; });
+        try {
+          await updateDoc(doc(db, 'categories', catId), { subcategories: subs });
+          showToast('Subcategory removed', 'success');
+          loadCategories();
+          loadCategoryDropdowns();
+        } catch (err) {
+          console.error('Delete sub error:', err);
+          showToast('Failed to remove subcategory', 'error');
+        }
+      });
+    });
+
+    // Edit category
     container.querySelectorAll('.cat-edit').forEach(function(btn) {
       btn.addEventListener('click', async function() {
         var catId = btn.getAttribute('data-id');
@@ -502,7 +656,6 @@ async function loadCategories() {
             + '</div>';
 
           document.body.appendChild(overlay);
-
           overlay.querySelector('#catEditClose').addEventListener('click', function() { overlay.remove(); });
           overlay.addEventListener('click', function(ev) { if (ev.target === overlay) overlay.remove(); });
 
@@ -534,7 +687,7 @@ async function loadCategories() {
     // Delete category
     container.querySelectorAll('.cat-delete').forEach(function(btn) {
       btn.addEventListener('click', async function() {
-        if (!confirm('Delete this category?')) return;
+        if (!confirm('Delete this category and all its subcategories?')) return;
         try {
           await deleteDoc(doc(db, 'categories', btn.getAttribute('data-id')));
           showToast('Category deleted', 'success');
@@ -563,7 +716,7 @@ if (catForm) {
     var description = document.getElementById('catDesc').value.trim();
     if (!name) return;
     try {
-      var data = { name: name, createdAt: serverTimestamp() };
+      var data = { name: name, subcategories: [], createdAt: serverTimestamp() };
       if (image) data.image = image;
       if (description) data.description = description;
       await addDoc(collection(db, 'categories'), data);

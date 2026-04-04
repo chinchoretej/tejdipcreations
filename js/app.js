@@ -6,9 +6,9 @@ import { initNavbar, createProductCard } from './utils.js';
 initNavbar();
 
 const FALLBACK_CATEGORIES = [
-  { name: 'Jewelry', image: 'assets/Jwelery.jpg', description: 'Earrings, Necklaces, Bracelets, Bangles & Hair Accessories' },
-  { name: 'Pooja Essentials', image: 'assets/Pooja Essential.jpg', description: 'Decorative Plates, Kalash & Saptapadi Supari' },
-  { name: 'Handmade Crafts', image: 'assets/Handmade arts.jpg', description: 'Sticks Decor, Wall Art & Mini Crafts' }
+  { name: 'Jewelry', image: 'assets/Jwelery.jpg', description: 'Earrings, Necklaces, Bracelets, Bangles & Hair Accessories', subcategories: ['Earrings', 'Necklaces', 'Bracelets', 'Bangles', 'Hair Accessories'] },
+  { name: 'Pooja Essentials', image: 'assets/Pooja Essential.jpg', description: 'Decorative Plates, Kalash & Saptapadi Supari', subcategories: ['Decorative Plates', 'Kalash', 'Saptapadi Supari'] },
+  { name: 'Handmade Crafts', image: 'assets/Handmade arts.jpg', description: 'Sticks Decor, Wall Art & Mini Crafts', subcategories: ['Sticks Decor', 'Wall Art', 'Mini Crafts'] }
 ];
 
 async function loadCategories() {
@@ -27,12 +27,13 @@ async function loadCategories() {
       card.href = `products.html?category=${encodeURIComponent(cat.name)}`;
       card.className = 'category-card';
       const img = cat.image || `https://placehold.co/400x300/e8c8ce/6d6875?text=${encodeURIComponent(cat.name)}`;
+      const desc = cat.description || (cat.subcategories ? cat.subcategories.join(', ') : '');
       card.innerHTML = `
         <img src="${img}" alt="${cat.name}" class="card-img"
              onerror="this.src='https://placehold.co/400x300/e8c8ce/6d6875?text=${encodeURIComponent(cat.name)}'">
         <div class="card-body">
           <h3>${cat.name}</h3>
-          <p>${cat.description || ''}</p>
+          <p>${desc}</p>
         </div>
       `;
       catGrid.appendChild(card);

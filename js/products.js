@@ -9,7 +9,9 @@ const grid = document.getElementById('productsGrid');
 const filterBar = document.getElementById('filterBar');
 
 let allProducts = [];
-let categoryNames = [];
+let allCategories = [];
+let activeCategory = 'all';
+let activeSubcategory = 'all';
 
 const urlCategory = getQueryParam('category');
 
@@ -18,36 +20,97 @@ async function buildFilterButtons() {
 
   try {
     const snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
-    categoryNames = [];
-    snapshot.forEach(d => categoryNames.push(d.data().name));
+    allCategories = [];
+    snapshot.forEach(d => allCategories.push({ id: d.id, ...d.data() }));
   } catch (err) {
     console.error('Error loading categories for filters:', err);
   }
 
-  filterBar.innerHTML = '<button class="filter-btn active" data-category="all">All</button>';
-  categoryNames.forEach(name => {
-    const btn = document.createElement('button');
+  filterBar.innerHTML = '';
+
+  // Main category row
+  var catRow = document.createElement('div');
+  catRow.id = 'catFilterRow';
+  catRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.5rem;';
+
+  var allBtn = document.createElement('button');
+  allBtn.className = 'filter-btn active';
+  allBtn.dataset.category = 'all';
+  allBtn.textContent = 'All';
+  catRow.appendChild(allBtn);
+
+  allCategories.forEach(function(cat) {
+    var btn = document.createElement('button');
     btn.className = 'filter-btn';
-    btn.dataset.category = name;
-    btn.textContent = name;
-    filterBar.appendChild(btn);
+    btn.dataset.category = cat.name;
+    btn.textContent = cat.name;
+    catRow.appendChild(btn);
   });
 
+  filterBar.appendChild(catRow);
+
+  // Subcategory row (hidden until a category is picked)
+  var subRow = document.createElement('div');
+  subRow.id = 'subFilterRow';
+  subRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.5rem;';
+  filterBar.appendChild(subRow);
+
+  // Pre-select from URL
   if (urlCategory) {
-    filterBar.querySelectorAll('.filter-btn').forEach(btn => {
-      if (btn.dataset.category === urlCategory) {
-        btn.classList.add('active');
-        filterBar.querySelector('[data-category="all"]').classList.remove('active');
-      }
+    activeCategory = urlCategory;
+    catRow.querySelectorAll('.filter-btn').forEach(function(btn) {
+      btn.classList.remove('active');
+      if (btn.dataset.category === urlCategory) btn.classList.add('active');
     });
+    buildSubcategoryButtons(urlCategory);
   }
 
-  filterBar.addEventListener('click', (e) => {
-    const btn = e.target.closest('.filter-btn');
+  // Category click handler
+  catRow.addEventListener('click', function(e) {
+    var btn = e.target.closest('.filter-btn');
     if (!btn) return;
-    filterBar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    catRow.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
     btn.classList.add('active');
-    renderProducts(btn.dataset.category);
+    activeCategory = btn.dataset.category;
+    activeSubcategory = 'all';
+    buildSubcategoryButtons(activeCategory);
+    renderProducts();
+  });
+}
+
+function buildSubcategoryButtons(categoryName) {
+  var subRow = document.getElementById('subFilterRow');
+  if (!subRow) return;
+  subRow.innerHTML = '';
+
+  if (categoryName === 'all') return;
+
+  var cat = allCategories.find(function(c) { return c.name === categoryName; });
+  if (!cat || !cat.subcategories || cat.subcategories.length === 0) return;
+
+  var allBtn = document.createElement('button');
+  allBtn.className = 'filter-btn active';
+  allBtn.dataset.subcategory = 'all';
+  allBtn.textContent = 'All ' + categoryName;
+  allBtn.style.fontSize = '0.82rem';
+  subRow.appendChild(allBtn);
+
+  cat.subcategories.forEach(function(sub) {
+    var btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.dataset.subcategory = sub;
+    btn.textContent = sub;
+    btn.style.fontSize = '0.82rem';
+    subRow.appendChild(btn);
+  });
+
+  subRow.addEventListener('click', function(e) {
+    var btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    subRow.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    activeSubcategory = btn.dataset.subcategory;
+    renderProducts();
   });
 }
 
@@ -61,7 +124,7 @@ async function loadProducts() {
       allProducts.push({ id: doc.id, ...doc.data() });
     });
 
-    renderProducts(urlCategory || 'all');
+    renderProducts();
   } catch (err) {
     console.error('Error loading products:', err);
     grid.innerHTML = `
@@ -72,12 +135,14 @@ async function loadProducts() {
   }
 }
 
-function renderProducts(category) {
-  var filtered;
-  if (category === 'all') {
-    filtered = allProducts;
-  } else {
-    filtered = allProducts.filter(p => p.category === category);
+function renderProducts() {
+  var filtered = allProducts;
+
+  if (activeCategory !== 'all') {
+    filtered = filtered.filter(function(p) { return p.category === activeCategory; });
+    if (activeSubcategory !== 'all') {
+      filtered = filtered.filter(function(p) { return p.subcategory === activeSubcategory; });
+    }
   }
 
   grid.innerHTML = '';
@@ -91,7 +156,7 @@ function renderProducts(category) {
     return;
   }
 
-  filtered.forEach(product => {
+  filtered.forEach(function(product) {
     grid.appendChild(createProductCard(product));
   });
 }
