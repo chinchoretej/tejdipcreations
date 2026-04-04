@@ -61,7 +61,7 @@
   border-color: var(--border);
 }
 
-[data-theme="dark"] img {
+[data-theme="dark"] img:not(.logo-img) {
   opacity: 0.92;
 }
 
@@ -144,6 +144,16 @@ input, textarea, select {
   font-weight: 700;
   color: var(--primary);
   letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navbar .logo .logo-img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  border-radius: 50%;
 }
 
 .navbar .logo span {
