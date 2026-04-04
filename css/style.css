@@ -150,8 +150,8 @@ input, textarea, select {
 }
 
 .navbar .logo .logo-img {
-  width: 55px;
-  height: 55px;
+  width: 75px;
+  height: 75px;
   object-fit: contain;
 }
 
