@@ -1,7 +1,7 @@
 // Admin dashboard logic
 import { db, auth } from './firebase-config.js';
 import {
-  collection, addDoc, getDocs, deleteDoc, doc, updateDoc,
+  collection, addDoc, getDocs, getDoc, deleteDoc, doc, updateDoc,
   query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -100,19 +100,25 @@ async function loadAdminProducts() {
       const p = docSnap.data();
       const card = document.createElement('div');
       card.className = 'product-card';
-      card.innerHTML = `
-        <img src="${p.image}" alt="${p.name}" class="card-img"
-             onerror="this.src='https://placehold.co/400x300/e8c8ce/6d6875?text=No+Image'">
-        <div class="card-body">
-          <div class="card-category">${p.category}</div>
-          <h3>${p.name}</h3>
-          <div class="card-footer">
-            <span class="price">&#8377;${p.price}</span>
-            <button class="btn-secondary btn-sm delete-btn" data-id="${docSnap.id}">Delete</button>
-          </div>
-        </div>
-      `;
+      card.setAttribute('data-id', docSnap.id);
+      card.innerHTML = '<img src="' + (p.image || '') + '" alt="' + (p.name || '') + '" class="card-img" onerror="this.src=\'https://placehold.co/400x300/e8c8ce/6d6875?text=No+Image\'">'
+        + '<div class="card-body">'
+        + '<div class="card-category">' + (p.category || '') + '</div>'
+        + '<h3>' + (p.name || '') + '</h3>'
+        + '<div style="font-size:0.85rem;color:var(--text-light);margin-bottom:0.5rem;">&#8377;' + (p.price || 0) + '</div>'
+        + '<div style="display:flex;gap:0.5rem;">'
+        + '<button class="edit-btn" data-id="' + docSnap.id + '" style="flex:1;background:var(--primary);color:#fff;padding:0.35rem 0.6rem;border:none;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;">Edit</button>'
+        + '<button class="delete-btn" data-id="' + docSnap.id + '" style="background:#e74c3c;color:#fff;padding:0.35rem 0.6rem;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">&#10005;</button>'
+        + '</div>'
+        + '</div>';
       grid.appendChild(card);
+    });
+
+    // Edit product buttons
+    grid.querySelectorAll('.edit-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        openEditModal(btn.getAttribute('data-id'));
+      });
     });
 
     grid.querySelectorAll('.delete-btn').forEach(btn => {
@@ -358,5 +364,64 @@ async function loadTrash() {
   } catch (err) {
     console.error('Error loading trash:', err);
     container.innerHTML = '<div class="empty-state"><p>Error loading trash.</p></div>';
+  }
+}
+
+// ---------- Edit product modal ----------
+async function openEditModal(productId) {
+  try {
+    var snap = await getDoc(doc(db, 'products', productId));
+    if (!snap.exists()) { showToast('Product not found', 'error'); return; }
+    var p = snap.data();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'editOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    var cats = ['Jewelry', 'Pooja Essentials', 'Handmade Crafts'];
+    var catOpts = '<option value="">Select category</option>';
+    for (var i = 0; i < cats.length; i++) {
+      catOpts += '<option value="' + cats[i] + '"' + (p.category === cats[i] ? ' selected' : '') + '>' + cats[i] + '</option>';
+    }
+
+    var inputStyle = 'width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--input-bg);color:var(--text);';
+
+    overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:12px;padding:1.5rem;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,0.2);">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><h2 style="font-size:1.2rem;">Edit Product</h2><button id="editClose" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text);">&#10005;</button></div>'
+      + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Name</label><input id="editName" value="' + (p.name || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
+      + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Category</label><select id="editCategory" style="' + inputStyle + '">' + catOpts + '</select></div>'
+      + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Price</label><input id="editPrice" type="number" value="' + (p.price || '') + '" style="' + inputStyle + '"></div>'
+      + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Image URL</label><input id="editImage" value="' + (p.image || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
+      + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Video URL</label><input id="editVideo" value="' + (p.video || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
+      + '<div style="margin-bottom:1rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Description</label><textarea id="editDesc" rows="3" style="' + inputStyle + 'resize:vertical;">' + (p.description || '') + '</textarea></div>'
+      + '<button id="editSave" style="width:100%;background:var(--primary);color:#fff;padding:0.7rem;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;">Save Changes</button>'
+      + '</div>';
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('editClose').addEventListener('click', function() { overlay.remove(); });
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+    document.getElementById('editSave').addEventListener('click', async function() {
+      try {
+        await updateDoc(doc(db, 'products', productId), {
+          name: document.getElementById('editName').value.trim(),
+          category: document.getElementById('editCategory').value,
+          price: Number(document.getElementById('editPrice').value),
+          image: document.getElementById('editImage').value.trim(),
+          video: document.getElementById('editVideo').value.trim() || null,
+          description: document.getElementById('editDesc').value.trim()
+        });
+        showToast('Product updated!', 'success');
+        overlay.remove();
+        loadAdminProducts();
+      } catch (err) {
+        console.error('Update error:', err);
+        showToast('Failed to update product', 'error');
+      }
+    });
+  } catch (err) {
+    console.error('Edit load error:', err);
+    showToast('Failed to load product', 'error');
   }
 }
