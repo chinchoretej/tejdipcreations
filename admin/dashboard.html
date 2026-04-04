@@ -41,6 +41,7 @@
       <div class="admin-tabs">
         <button class="admin-tab active" data-tab="add-product">Add Product</button>
         <button class="admin-tab" data-tab="manage-products">Products</button>
+        <button class="admin-tab" data-tab="categories">Categories</button>
         <button class="admin-tab" data-tab="orders">Orders</button>
         <button class="admin-tab" data-tab="trash">Trash</button>
       </div>
@@ -59,9 +60,6 @@
                 <label for="prodCategory">Category</label>
                 <select id="prodCategory" required style="width:100%;padding:0.75rem 1rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;background:var(--input-bg);color:var(--text);">
                   <option value="">Select category</option>
-                  <option value="Jewelry">Jewelry</option>
-                  <option value="Pooja Essentials">Pooja Essentials</option>
-                  <option value="Handmade Crafts">Handmade Crafts</option>
                 </select>
               </div>
               <div class="form-group">
@@ -97,6 +95,33 @@
         </div>
       </div>
 
+      <!-- Categories Panel -->
+      <div class="admin-panel" id="categories">
+        <div style="max-width:500px;">
+          <div class="add-product-form" style="margin-bottom:1.5rem;">
+            <h2 style="font-size:1.2rem;margin-bottom:1rem;">Add New Category</h2>
+            <form id="addCategoryForm">
+              <div class="form-group">
+                <label for="catName">Category Name</label>
+                <input type="text" id="catName" placeholder="e.g. Anklets" required>
+              </div>
+              <div class="form-group">
+                <label for="catImage">Image URL (Optional, Shown On Home Page)</label>
+                <input type="text" id="catImage" placeholder="https://example.com/category.jpg">
+              </div>
+              <div class="form-group">
+                <label for="catDesc">Description (Optional)</label>
+                <input type="text" id="catDesc" placeholder="e.g. Beautiful handmade anklets">
+              </div>
+              <button type="submit" class="btn-primary" style="width:100%;text-align:center;">Add Category</button>
+            </form>
+          </div>
+          <div id="categoriesList">
+            <div class="loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Orders Panel -->
       <div class="admin-panel" id="orders">
         <div class="orders-list" id="ordersContainer">
@@ -123,6 +148,6 @@
 
   <script src="../js/theme.js"></script>
   <script type="module" src="../js/firebase-config.js"></script>
-  <script type="module" src="../js/admin-dashboard.js?v=5"></script>
+  <script type="module" src="../js/admin-dashboard.js?v=6"></script>
 </body>
 </html>

@@ -107,7 +107,14 @@ service cloud.firestore {
     }
     match /orders/{orderId} {
       allow create: if true;
-      allow read: if request.auth != null;
+      allow read, update, delete: if request.auth != null;
+    }
+    match /trash/{trashId} {
+      allow read, write: if request.auth != null;
+    }
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if request.auth != null;
     }
   }
 }

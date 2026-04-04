@@ -28,6 +28,7 @@ tabs.forEach(tab => {
     document.getElementById(tab.dataset.tab).classList.add('active');
 
     if (tab.dataset.tab === 'manage-products') loadAdminProducts();
+    if (tab.dataset.tab === 'categories') loadCategories();
     if (tab.dataset.tab === 'orders') loadOrders();
     if (tab.dataset.tab === 'trash') loadTrash();
   });
@@ -378,11 +379,12 @@ async function openEditModal(productId) {
     overlay.id = 'editOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
-    var cats = ['Jewelry', 'Pooja Essentials', 'Handmade Crafts'];
+    var catSnapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
     var catOpts = '<option value="">Select category</option>';
-    for (var i = 0; i < cats.length; i++) {
-      catOpts += '<option value="' + cats[i] + '"' + (p.category === cats[i] ? ' selected' : '') + '>' + cats[i] + '</option>';
-    }
+    catSnapshot.forEach(function(d) {
+      var cName = d.data().name;
+      catOpts += '<option value="' + cName + '"' + (p.category === cName ? ' selected' : '') + '>' + cName + '</option>';
+    });
 
     var inputStyle = 'width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--input-bg);color:var(--text);';
 
@@ -424,4 +426,156 @@ async function openEditModal(productId) {
     console.error('Edit load error:', err);
     showToast('Failed to load product', 'error');
   }
+}
+
+// ---------- Categories CRUD ----------
+async function loadCategoryDropdowns() {
+  try {
+    var snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+    var select = document.getElementById('prodCategory');
+    if (select) {
+      var current = select.value;
+      select.innerHTML = '<option value="">Select category</option>';
+      snapshot.forEach(function(d) {
+        var opt = document.createElement('option');
+        opt.value = d.data().name;
+        opt.textContent = d.data().name;
+        select.appendChild(opt);
+      });
+      if (current) select.value = current;
+    }
+  } catch (err) {
+    console.error('Error loading categories:', err);
+  }
+}
+
+// Load categories into dropdown on page load
+loadCategoryDropdowns();
+
+async function loadCategories() {
+  var container = document.getElementById('categoriesList');
+  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+
+  try {
+    var snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+    container.innerHTML = '';
+
+    if (snapshot.empty) {
+      container.innerHTML = '<div class="empty-state"><p>No categories yet. Add one above.</p></div>';
+      return;
+    }
+
+    snapshot.forEach(function(docSnap) {
+      var c = docSnap.data();
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:0.8rem;padding:0.8rem 1rem;background:var(--bg-card);border-radius:8px;box-shadow:var(--shadow);margin-bottom:0.6rem;';
+
+      var imgThumb = c.image ? '<img src="' + c.image + '" style="width:40px;height:40px;border-radius:6px;object-fit:cover;">' : '';
+      var descText = c.description ? '<span style="font-size:0.8rem;color:var(--text-light);display:block;">' + c.description + '</span>' : '';
+
+      row.innerHTML = imgThumb
+        + '<div style="flex:1;"><span style="font-weight:600;font-size:0.95rem;">' + c.name + '</span>' + descText + '</div>'
+        + '<button class="cat-edit" data-id="' + docSnap.id + '" style="background:var(--primary);color:#fff;padding:0.3rem 0.8rem;border:none;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;">Edit</button>'
+        + '<button class="cat-delete" data-id="' + docSnap.id + '" style="background:#e74c3c;color:#fff;padding:0.3rem 0.6rem;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;">&#10005;</button>';
+      container.appendChild(row);
+    });
+
+    // Edit category — opens a small modal
+    container.querySelectorAll('.cat-edit').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        var catId = btn.getAttribute('data-id');
+        try {
+          var catDoc = await getDoc(doc(db, 'categories', catId));
+          if (!catDoc.exists()) return;
+          var c = catDoc.data();
+
+          var overlay = document.createElement('div');
+          overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;';
+          var inputStyle = 'width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--input-bg);color:var(--text);';
+
+          overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:12px;padding:1.5rem;width:100%;max-width:400px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><h2 style="font-size:1.1rem;">Edit Category</h2><button id="catEditClose" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text);">&#10005;</button></div>'
+            + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Name</label><input id="editCatName" value="' + (c.name || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
+            + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Image URL</label><input id="editCatImage" value="' + (c.image || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
+            + '<div style="margin-bottom:1rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Description</label><input id="editCatDesc" value="' + (c.description || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
+            + '<button id="catEditSave" style="width:100%;padding:0.7rem;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:0.95rem;font-weight:600;cursor:pointer;">Save Changes</button>'
+            + '</div>';
+
+          document.body.appendChild(overlay);
+
+          overlay.querySelector('#catEditClose').addEventListener('click', function() { overlay.remove(); });
+          overlay.addEventListener('click', function(ev) { if (ev.target === overlay) overlay.remove(); });
+
+          overlay.querySelector('#catEditSave').addEventListener('click', async function() {
+            var updatedData = {
+              name: document.getElementById('editCatName').value.trim(),
+              image: document.getElementById('editCatImage').value.trim(),
+              description: document.getElementById('editCatDesc').value.trim()
+            };
+            if (!updatedData.name) { showToast('Name is required', 'error'); return; }
+            try {
+              await updateDoc(doc(db, 'categories', catId), updatedData);
+              showToast('Category updated!', 'success');
+              overlay.remove();
+              loadCategories();
+              loadCategoryDropdowns();
+            } catch (err) {
+              console.error('Category update error:', err);
+              showToast('Failed to update', 'error');
+            }
+          });
+        } catch (err) {
+          console.error('Error loading category:', err);
+          showToast('Failed to load category', 'error');
+        }
+      });
+    });
+
+    // Delete category
+    container.querySelectorAll('.cat-delete').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        if (!confirm('Delete this category?')) return;
+        try {
+          await deleteDoc(doc(db, 'categories', btn.getAttribute('data-id')));
+          showToast('Category deleted', 'success');
+          loadCategories();
+          loadCategoryDropdowns();
+        } catch (err) {
+          console.error('Category delete error:', err);
+          showToast('Failed to delete', 'error');
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error('Error loading categories:', err);
+    container.innerHTML = '<div class="empty-state"><p>Error loading categories.</p></div>';
+  }
+}
+
+// Add category form
+var catForm = document.getElementById('addCategoryForm');
+if (catForm) {
+  catForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var name = document.getElementById('catName').value.trim();
+    var image = document.getElementById('catImage').value.trim();
+    var description = document.getElementById('catDesc').value.trim();
+    if (!name) return;
+    try {
+      var data = { name: name, createdAt: serverTimestamp() };
+      if (image) data.image = image;
+      if (description) data.description = description;
+      await addDoc(collection(db, 'categories'), data);
+      showToast('Category added!', 'success');
+      document.getElementById('catName').value = '';
+      document.getElementById('catImage').value = '';
+      document.getElementById('catDesc').value = '';
+      loadCategories();
+      loadCategoryDropdowns();
+    } catch (err) {
+      console.error('Add category error:', err);
+      showToast('Failed to add category', 'error');
+    }
+  });
 }

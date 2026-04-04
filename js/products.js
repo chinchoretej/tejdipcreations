@@ -9,30 +9,48 @@ const grid = document.getElementById('productsGrid');
 const filterBar = document.getElementById('filterBar');
 
 let allProducts = [];
+let categoryNames = [];
 
-const CATEGORY_GROUPS = {
-  'Jewelry': ['Earrings', 'Necklaces', 'Bracelets', 'Bangles', 'Hair Accessories'],
-  'Pooja Essentials': ['Decorative Plates', 'Kalash', 'Saptapadi Supari'],
-  'Handmade Crafts': ['Sticks Decor', 'Wall Art', 'Mini Crafts']
-};
-
-// Pre-select category from URL if present
 const urlCategory = getQueryParam('category');
-if (urlCategory && filterBar) {
-  const groupSubs = CATEGORY_GROUPS[urlCategory];
-  if (groupSubs) {
+
+async function buildFilterButtons() {
+  if (!filterBar) return;
+
+  try {
+    const snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+    categoryNames = [];
+    snapshot.forEach(d => categoryNames.push(d.data().name));
+  } catch (err) {
+    console.error('Error loading categories for filters:', err);
+  }
+
+  filterBar.innerHTML = '<button class="filter-btn active" data-category="all">All</button>';
+  categoryNames.forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.dataset.category = name;
+    btn.textContent = name;
+    filterBar.appendChild(btn);
+  });
+
+  if (urlCategory) {
     filterBar.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.classList.toggle('active', groupSubs.includes(btn.dataset.category));
-    });
-    filterBar.querySelector('[data-category="all"]').classList.remove('active');
-  } else {
-    filterBar.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.category === urlCategory);
+      if (btn.dataset.category === urlCategory) {
+        btn.classList.add('active');
+        filterBar.querySelector('[data-category="all"]').classList.remove('active');
+      }
     });
   }
+
+  filterBar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    filterBar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderProducts(btn.dataset.category);
+  });
 }
 
-// Load all products once
 async function loadProducts() {
   try {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
@@ -58,9 +76,6 @@ function renderProducts(category) {
   var filtered;
   if (category === 'all') {
     filtered = allProducts;
-  } else if (CATEGORY_GROUPS[category]) {
-    var subs = CATEGORY_GROUPS[category];
-    filtered = allProducts.filter(p => subs.includes(p.category));
   } else {
     filtered = allProducts.filter(p => p.category === category);
   }
@@ -81,16 +96,5 @@ function renderProducts(category) {
   });
 }
 
-// Filter button clicks
-if (filterBar) {
-  filterBar.addEventListener('click', (e) => {
-    const btn = e.target.closest('.filter-btn');
-    if (!btn) return;
-
-    filterBar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    renderProducts(btn.dataset.category);
-  });
-}
-
+await buildFilterButtons();
 loadProducts();

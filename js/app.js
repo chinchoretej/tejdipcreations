@@ -5,42 +5,59 @@ import { initNavbar, createProductCard } from './utils.js';
 
 initNavbar();
 
-const CATEGORIES = [
-  {
-    name: 'Jewelry',
-    image: 'assets/Jwelery.jpg',
-    desc: 'Earrings, Necklaces, Bracelets, Bangles & Hair Accessories'
-  },
-  {
-    name: 'Pooja Essentials',
-    image: 'assets/Pooja Essential.jpg',
-    desc: 'Decorative Plates, Kalash & Saptapadi Supari'
-  },
-  {
-    name: 'Handmade Crafts',
-    image: 'assets/Handmade arts.jpg',
-    desc: 'Sticks Decor, Wall Art & Mini Crafts'
-  }
+const FALLBACK_CATEGORIES = [
+  { name: 'Jewelry', image: 'assets/Jwelery.jpg', description: 'Earrings, Necklaces, Bracelets, Bangles & Hair Accessories' },
+  { name: 'Pooja Essentials', image: 'assets/Pooja Essential.jpg', description: 'Decorative Plates, Kalash & Saptapadi Supari' },
+  { name: 'Handmade Crafts', image: 'assets/Handmade arts.jpg', description: 'Sticks Decor, Wall Art & Mini Crafts' }
 ];
 
-// Render categories
-const catGrid = document.getElementById('categoriesGrid');
-if (catGrid) {
-  CATEGORIES.forEach(cat => {
-    const card = document.createElement('a');
-    card.href = `products.html?category=${encodeURIComponent(cat.name)}`;
-    card.className = 'category-card';
-    card.innerHTML = `
-      <img src="${cat.image}" alt="${cat.name}" class="card-img"
-           onerror="this.src='https://placehold.co/400x300/e8c8ce/6d6875?text=${encodeURIComponent(cat.name)}'">
-      <div class="card-body">
-        <h3>${cat.name}</h3>
-        <p>${cat.desc}</p>
-      </div>
-    `;
-    catGrid.appendChild(card);
-  });
+async function loadCategories() {
+  const catGrid = document.getElementById('categoriesGrid');
+  if (!catGrid) return;
+
+  try {
+    const snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+    let cats = [];
+    snapshot.forEach(d => cats.push(d.data()));
+    if (cats.length === 0) cats = FALLBACK_CATEGORIES;
+
+    catGrid.innerHTML = '';
+    cats.forEach(cat => {
+      const card = document.createElement('a');
+      card.href = `products.html?category=${encodeURIComponent(cat.name)}`;
+      card.className = 'category-card';
+      const img = cat.image || `https://placehold.co/400x300/e8c8ce/6d6875?text=${encodeURIComponent(cat.name)}`;
+      card.innerHTML = `
+        <img src="${img}" alt="${cat.name}" class="card-img"
+             onerror="this.src='https://placehold.co/400x300/e8c8ce/6d6875?text=${encodeURIComponent(cat.name)}'">
+        <div class="card-body">
+          <h3>${cat.name}</h3>
+          <p>${cat.description || ''}</p>
+        </div>
+      `;
+      catGrid.appendChild(card);
+    });
+  } catch (err) {
+    console.error('Error loading categories:', err);
+    catGrid.innerHTML = '';
+    FALLBACK_CATEGORIES.forEach(cat => {
+      const card = document.createElement('a');
+      card.href = `products.html?category=${encodeURIComponent(cat.name)}`;
+      card.className = 'category-card';
+      card.innerHTML = `
+        <img src="${cat.image}" alt="${cat.name}" class="card-img"
+             onerror="this.src='https://placehold.co/400x300/e8c8ce/6d6875?text=${encodeURIComponent(cat.name)}'">
+        <div class="card-body">
+          <h3>${cat.name}</h3>
+          <p>${cat.description}</p>
+        </div>
+      `;
+      catGrid.appendChild(card);
+    });
+  }
 }
+
+loadCategories();
 
 // Render featured products (latest 4)
 async function loadFeatured() {
