@@ -7,24 +7,19 @@ initNavbar();
 
 const CATEGORIES = [
   {
-    name: 'Nose Pins',
-    image: 'https://images.unsplash.com/photo-1611085583191-a3b181a88401?w=400&h=300&fit=crop',
-    desc: 'Elegant handmade nose pins'
+    name: 'Jewelry',
+    image: 'assets/Jwelery.png',
+    desc: 'Earrings, Necklaces, Bracelets, Bangles & Hair Accessories'
   },
   {
-    name: 'Hair Pins',
-    image: 'https://images.unsplash.com/photo-1596944924616-7b38e7cfac36?w=400&h=300&fit=crop',
-    desc: 'Stylish hair accessories'
+    name: 'Pooja Essentials',
+    image: 'assets/Pooja Essential.png',
+    desc: 'Decorative Plates, Kalash & Saptapadi Supari'
   },
   {
-    name: 'Decorative Plates',
-    image: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=400&h=300&fit=crop',
-    desc: 'Beautiful hand-painted plates'
-  },
-  {
-    name: 'Pots',
-    image: 'https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=400&h=300&fit=crop',
-    desc: 'Artistic craft pots'
+    name: 'Handmade Crafts',
+    image: 'assets/Handmade arts.png',
+    desc: 'Sticks Decor, Wall Art & Mini Crafts'
   }
 ];
 

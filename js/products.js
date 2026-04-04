@@ -10,12 +10,26 @@ const filterBar = document.getElementById('filterBar');
 
 let allProducts = [];
 
+const CATEGORY_GROUPS = {
+  'Jewelry': ['Earrings', 'Necklaces', 'Bracelets', 'Bangles', 'Hair Accessories'],
+  'Pooja Essentials': ['Decorative Plates', 'Kalash', 'Saptapadi Supari'],
+  'Handmade Crafts': ['Sticks Decor', 'Wall Art', 'Mini Crafts']
+};
+
 // Pre-select category from URL if present
 const urlCategory = getQueryParam('category');
 if (urlCategory && filterBar) {
-  filterBar.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.category === urlCategory);
-  });
+  const groupSubs = CATEGORY_GROUPS[urlCategory];
+  if (groupSubs) {
+    filterBar.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.toggle('active', groupSubs.includes(btn.dataset.category));
+    });
+    filterBar.querySelector('[data-category="all"]').classList.remove('active');
+  } else {
+    filterBar.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.category === urlCategory);
+    });
+  }
 }
 
 // Load all products once
@@ -41,9 +55,15 @@ async function loadProducts() {
 }
 
 function renderProducts(category) {
-  const filtered = category === 'all'
-    ? allProducts
-    : allProducts.filter(p => p.category === category);
+  var filtered;
+  if (category === 'all') {
+    filtered = allProducts;
+  } else if (CATEGORY_GROUPS[category]) {
+    var subs = CATEGORY_GROUPS[category];
+    filtered = allProducts.filter(p => subs.includes(p.category));
+  } else {
+    filtered = allProducts.filter(p => p.category === category);
+  }
 
   grid.innerHTML = '';
 
