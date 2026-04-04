@@ -65,7 +65,7 @@ async function loadProduct() {
           <span class="count">${rating} (${reviewCount} reviews)</span>
         </div>
         <div class="price">&#8377;${product.price}</div>
-        <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:1rem;">Price is excluding delivery charges. Delivery charges will be shared via WhatsApp after order placement.</p>
+        <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:1rem;">Price is excluding Delivery Charges. Delivery Charges will be shared via WhatsApp after order placement.</p>
         <p class="description">${product.description || 'No description available.'}</p>
         <a href="checkout.html?id=${product.id}" class="btn-primary">Buy Now &rarr;</a>
       </div>

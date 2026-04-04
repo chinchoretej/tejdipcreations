@@ -214,7 +214,7 @@ async function loadOrders() {
         var curStatus = btn.closest('.order-card').querySelector('.status-select').value;
         var msg = '';
         if (curStatus === 'Payment Received') {
-          msg = 'Hi ' + name + '! ✅\n\nYour payment for *' + product + '* (₹' + price + ') has been received!\n\nWe will share the delivery charges shortly and ship your order. Thank you for shopping with TejDipCreations! 🙏';
+          msg = 'Hi ' + name + '! ✅\n\nYour payment for *' + product + '* (₹' + price + ') has been received!\n\nWe will share the Delivery Charges shortly and ship your order. Thank you for shopping with TejDipCreations! 🙏';
         } else if (curStatus === 'Shipped') {
           msg = 'Hi ' + name + '! 📦\n\nGreat news! Your order for *' + product + '* (₹' + price + ') has been *shipped*!\n\nYou will receive it soon. Thank you for shopping with TejDipCreations! 🙏';
         } else if (curStatus === 'Payment Not Received') {
