@@ -545,7 +545,8 @@ async function loadCategories() {
       var card = document.createElement('div');
       card.style.cssText = 'background:var(--bg-card);border-radius:10px;box-shadow:var(--shadow);padding:1rem;margin-bottom:1rem;';
 
-      var imgThumb = c.image ? '<img src="' + c.image + '" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;">' : '';
+      var imgSrc = c.image ? (c.image.startsWith('assets/') ? '../' + c.image : c.image) : '';
+      var imgThumb = imgSrc ? '<img src="' + imgSrc + '" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;">' : '';
       var descText = c.description ? '<span style="font-size:0.78rem;color:var(--text-light);display:block;">' + c.description + '</span>' : '';
 
       var headerHTML = '<div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.6rem;">'
