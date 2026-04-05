@@ -16,9 +16,10 @@ async function loadCategories() {
   if (!catGrid) return;
 
   try {
-    const snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+    const snapshot = await getDocs(collection(db, 'categories'));
     let cats = [];
     snapshot.forEach(d => cats.push(d.data()));
+    cats.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     if (cats.length === 0) cats = FALLBACK_CATEGORIES;
 
     catGrid.innerHTML = '';

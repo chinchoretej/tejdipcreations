@@ -19,9 +19,10 @@ async function buildFilterButtons() {
   if (!filterBar) return;
 
   try {
-    const snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+    const snapshot = await getDocs(collection(db, 'categories'));
     allCategories = [];
     snapshot.forEach(d => allCategories.push({ id: d.id, ...d.data() }));
+    allCategories.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   } catch (err) {
     console.error('Error loading categories for filters:', err);
   }

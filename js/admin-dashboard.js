@@ -469,11 +469,12 @@ async function seedDefaultCategories() {
 }
 
 async function fetchAllCategories() {
-  var snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+  var snapshot = await getDocs(collection(db, 'categories'));
   allCategoriesCache = [];
   snapshot.forEach(function(d) {
     allCategoriesCache.push({ id: d.id, ...d.data() });
   });
+  allCategoriesCache.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
   return allCategoriesCache;
 }
 
