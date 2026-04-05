@@ -12,8 +12,26 @@ let allProducts = [];
 let allCategories = [];
 let activeCategory = 'all';
 let activeSubcategory = 'all';
+let searchTerm = '';
+let sortMode = 'default';
 
 const urlCategory = getQueryParam('category');
+const searchInput = document.getElementById('searchInput');
+const sortSelect = document.getElementById('sortSelect');
+
+if (searchInput) {
+  searchInput.addEventListener('input', function() {
+    searchTerm = this.value.trim().toLowerCase();
+    renderProducts();
+  });
+}
+
+if (sortSelect) {
+  sortSelect.addEventListener('change', function() {
+    sortMode = this.value;
+    renderProducts();
+  });
+}
 
 async function buildFilterButtons() {
   if (!filterBar) return;
@@ -146,13 +164,26 @@ function renderProducts() {
     }
   }
 
+  if (searchTerm) {
+    filtered = filtered.filter(function(p) {
+      return (p.name || '').toLowerCase().includes(searchTerm)
+        || (p.description || '').toLowerCase().includes(searchTerm);
+    });
+  }
+
+  if (sortMode === 'low-high') {
+    filtered = filtered.slice().sort(function(a, b) { return (a.price || 0) - (b.price || 0); });
+  } else if (sortMode === 'high-low') {
+    filtered = filtered.slice().sort(function(a, b) { return (b.price || 0) - (a.price || 0); });
+  }
+
   grid.innerHTML = '';
 
   if (filtered.length === 0) {
     grid.innerHTML = `
       <div class="empty-state" style="grid-column: 1/-1;">
         <div class="icon">&#128722;</div>
-        <p>No products found in this category.</p>
+        <p>No products found.</p>
       </div>`;
     return;
   }

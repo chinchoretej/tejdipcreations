@@ -13,6 +13,8 @@ initNavbar();
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     window.location.href = 'index.html';
+  } else {
+    updateOrderCountBadge();
   }
 });
 
@@ -39,6 +41,24 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   await signOut(auth);
   window.location.href = 'index.html';
 });
+
+// ---------- Order Count Badge ----------
+async function updateOrderCountBadge() {
+  try {
+    var snapshot = await getDocs(collection(db, 'orders'));
+    var pending = 0;
+    snapshot.forEach(function(d) {
+      var status = d.data().status || 'Pending';
+      if (status === 'Pending') pending++;
+    });
+    var ordersTab = document.querySelector('.admin-tab[data-tab="orders"]');
+    if (ordersTab) {
+      ordersTab.textContent = pending > 0 ? 'Orders (' + pending + ')' : 'Orders';
+    }
+  } catch (err) {
+    console.error('Order count error:', err);
+  }
+}
 
 // ---------- Add Product ----------
 const addForm = document.getElementById('addProductForm');
@@ -205,6 +225,7 @@ async function loadOrders() {
         try {
           await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
           showToast('Status updated to: ' + newStatus, 'success');
+          updateOrderCountBadge();
         } catch (err) {
           console.error('Status update error:', err);
           showToast('Failed to update status', 'error');
@@ -251,6 +272,7 @@ async function loadOrders() {
           }
           await deleteDoc(doc(db, 'orders', orderId));
           showToast('Order moved to trash', 'success');
+          updateOrderCountBadge();
           loadOrders();
         } catch (err) {
           console.error('Trash error:', err);
@@ -341,6 +363,7 @@ async function loadTrash() {
           }
           await deleteDoc(doc(db, 'trash', trashId));
           showToast('Order restored!', 'success');
+          updateOrderCountBadge();
           loadTrash();
         } catch (err) {
           console.error('Restore error:', err);
