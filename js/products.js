@@ -6,7 +6,10 @@ import { initNavbar, createProductCard, getQueryParam } from './utils.js';
 initNavbar();
 
 const grid = document.getElementById('productsGrid');
-const filterBar = document.getElementById('filterBar');
+const catSelect = document.getElementById('filterCategory');
+const subSelect = document.getElementById('filterSubcategory');
+const searchInput = document.getElementById('searchInput');
+const sortSelect = document.getElementById('sortSelect');
 
 let allProducts = [];
 let allCategories = [];
@@ -16,8 +19,6 @@ let searchTerm = '';
 let sortMode = 'default';
 
 const urlCategory = getQueryParam('category');
-const searchInput = document.getElementById('searchInput');
-const sortSelect = document.getElementById('sortSelect');
 
 if (searchInput) {
   searchInput.addEventListener('input', function() {
@@ -33,9 +34,23 @@ if (sortSelect) {
   });
 }
 
-async function buildFilterButtons() {
-  if (!filterBar) return;
+if (catSelect) {
+  catSelect.addEventListener('change', function() {
+    activeCategory = this.value;
+    activeSubcategory = 'all';
+    populateSubcategories(activeCategory);
+    renderProducts();
+  });
+}
 
+if (subSelect) {
+  subSelect.addEventListener('change', function() {
+    activeSubcategory = this.value;
+    renderProducts();
+  });
+}
+
+async function buildFilterDropdowns() {
   try {
     const snapshot = await getDocs(collection(db, 'categories'));
     allCategories = [];
@@ -45,92 +60,48 @@ async function buildFilterButtons() {
     console.error('Error loading categories for filters:', err);
   }
 
-  filterBar.innerHTML = '';
+  if (!catSelect) return;
 
-  // Main category row
-  var catRow = document.createElement('div');
-  catRow.id = 'catFilterRow';
-  catRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.5rem;';
-
-  var allBtn = document.createElement('button');
-  allBtn.className = 'filter-btn active';
-  allBtn.dataset.category = 'all';
-  allBtn.textContent = 'All';
-  catRow.appendChild(allBtn);
-
+  catSelect.innerHTML = '<option value="all">All Categories</option>';
   allCategories.forEach(function(cat) {
-    var btn = document.createElement('button');
-    btn.className = 'filter-btn';
-    btn.dataset.category = cat.name;
-    btn.textContent = cat.name;
-    catRow.appendChild(btn);
+    var opt = document.createElement('option');
+    opt.value = cat.name;
+    opt.textContent = cat.name;
+    catSelect.appendChild(opt);
   });
 
-  filterBar.appendChild(catRow);
-
-  // Subcategory row (hidden until a category is picked)
-  var subRow = document.createElement('div');
-  subRow.id = 'subFilterRow';
-  subRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.5rem;';
-  filterBar.appendChild(subRow);
-
-  // Pre-select from URL
   if (urlCategory) {
     activeCategory = urlCategory;
-    catRow.querySelectorAll('.filter-btn').forEach(function(btn) {
-      btn.classList.remove('active');
-      if (btn.dataset.category === urlCategory) btn.classList.add('active');
-    });
-    buildSubcategoryButtons(urlCategory);
+    catSelect.value = urlCategory;
+    populateSubcategories(urlCategory);
   }
-
-  // Category click handler
-  catRow.addEventListener('click', function(e) {
-    var btn = e.target.closest('.filter-btn');
-    if (!btn) return;
-    catRow.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
-    btn.classList.add('active');
-    activeCategory = btn.dataset.category;
-    activeSubcategory = 'all';
-    buildSubcategoryButtons(activeCategory);
-    renderProducts();
-  });
 }
 
-function buildSubcategoryButtons(categoryName) {
-  var subRow = document.getElementById('subFilterRow');
-  if (!subRow) return;
-  subRow.innerHTML = '';
+function populateSubcategories(categoryName) {
+  if (!subSelect) return;
 
-  if (categoryName === 'all') return;
+  subSelect.innerHTML = '<option value="all">All Subcategories</option>';
+
+  if (categoryName === 'all') {
+    subSelect.style.display = 'none';
+    return;
+  }
 
   var cat = allCategories.find(function(c) { return c.name === categoryName; });
-  if (!cat || !cat.subcategories || cat.subcategories.length === 0) return;
-
-  var allBtn = document.createElement('button');
-  allBtn.className = 'filter-btn active';
-  allBtn.dataset.subcategory = 'all';
-  allBtn.textContent = 'All ' + categoryName;
-  allBtn.style.fontSize = '0.82rem';
-  subRow.appendChild(allBtn);
+  if (!cat || !cat.subcategories || cat.subcategories.length === 0) {
+    subSelect.style.display = 'none';
+    return;
+  }
 
   cat.subcategories.forEach(function(sub) {
-    var btn = document.createElement('button');
-    btn.className = 'filter-btn';
-    btn.dataset.subcategory = sub;
-    btn.textContent = sub;
-    btn.style.fontSize = '0.82rem';
-    subRow.appendChild(btn);
+    var opt = document.createElement('option');
+    opt.value = sub;
+    opt.textContent = sub;
+    subSelect.appendChild(opt);
   });
 
-  subRow.addEventListener('click', function(e) {
-    var btn = e.target.closest('.filter-btn');
-    if (!btn) return;
-    subRow.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
-    btn.classList.add('active');
-    activeSubcategory = btn.dataset.subcategory;
-    renderProducts();
-  });
+  subSelect.style.display = '';
+  subSelect.value = 'all';
 }
 
 async function loadProducts() {
@@ -193,5 +164,5 @@ function renderProducts() {
   });
 }
 
-await buildFilterButtons();
+await buildFilterDropdowns();
 loadProducts();

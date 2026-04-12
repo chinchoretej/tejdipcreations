@@ -38,16 +38,19 @@
   <!-- Filter + Products -->
   <section class="section">
     <div class="container">
-      <div style="display:flex;gap:0.8rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
-        <input type="text" id="searchInput" placeholder="Search Products..." style="flex:1;min-width:200px;padding:0.65rem 1rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;background:var(--input-bg);color:var(--text);">
-        <select id="sortSelect" style="padding:0.65rem 1rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;background:var(--input-bg);color:var(--text);cursor:pointer;">
-          <option value="default">Sort: Default</option>
-          <option value="low-high">Price: Low To High</option>
-          <option value="high-low">Price: High To Low</option>
+      <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
+        <input type="text" id="searchInput" placeholder="Search Products..." style="flex:1;min-width:140px;padding:0.65rem 1rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;background:var(--input-bg);color:var(--text);">
+        <select id="filterCategory" style="padding:0.65rem 0.8rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;background:var(--input-bg);color:var(--text);cursor:pointer;">
+          <option value="all">All Categories</option>
         </select>
-      </div>
-      <div class="filter-bar" id="filterBar">
-        <button class="filter-btn active" data-category="all">All</button>
+        <select id="filterSubcategory" style="padding:0.65rem 0.8rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;background:var(--input-bg);color:var(--text);cursor:pointer;display:none;">
+          <option value="all">All Subcategories</option>
+        </select>
+        <select id="sortSelect" style="padding:0.65rem 0.8rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;background:var(--input-bg);color:var(--text);cursor:pointer;">
+          <option value="default">Sort: Default</option>
+          <option value="low-high">Price: Low → High</option>
+          <option value="high-low">Price: High → Low</option>
+        </select>
       </div>
       <div class="products-grid" id="productsGrid">
         <div class="loader"><div class="spinner"></div></div>
