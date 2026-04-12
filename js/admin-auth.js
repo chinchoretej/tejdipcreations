@@ -14,15 +14,22 @@ const ALLOWED_ADMINS = [
   'dipalishirude7@gmail.com'
 ];
 
+function isAllowed(email) {
+  return email && ALLOWED_ADMINS.includes(email.toLowerCase());
+}
+
+const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
+
 const errorMsg = document.getElementById('errorMsg');
 const googleBtn = document.getElementById('googleSignInBtn');
 
 onAuthStateChanged(auth, (user) => {
-  if (user && ALLOWED_ADMINS.includes(user.email)) {
+  if (user && isAllowed(user.email)) {
     window.location.href = 'dashboard.html';
   } else if (user) {
     signOut(auth);
-    showError('This Google account is not authorized as admin.');
+    showError('This Google account (' + user.email + ') is not authorized as admin.');
   }
 });
 
@@ -35,16 +42,13 @@ function showError(msg) {
 if (googleBtn) {
   googleBtn.addEventListener('click', async () => {
     errorMsg.classList.remove('show');
-    const provider = new GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/drive.file');
 
     try {
-      const result = await signInWithPopup(auth, provider);
-      const email = result.user.email;
+      const result = await signInWithPopup(auth, googleProvider);
 
-      if (!ALLOWED_ADMINS.includes(email)) {
+      if (!isAllowed(result.user.email)) {
         await signOut(auth);
-        showError('Access denied. "' + email + '" is not an authorized admin account.');
+        showError('Access denied. "' + result.user.email + '" is not an authorized admin account.');
         return;
       }
 
@@ -57,12 +61,12 @@ if (googleBtn) {
       window.location.href = 'dashboard.html';
     } catch (err) {
       console.error('Google sign-in error:', err);
-      if (err.code === 'auth/popup-closed-by-user') {
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         showError('Sign-in cancelled. Please try again.');
       } else if (err.code === 'auth/popup-blocked') {
         showError('Pop-up blocked. Please allow pop-ups for this site.');
       } else {
-        showError('Sign-in failed. Please try again.');
+        showError('Sign-in failed: ' + (err.message || err.code || 'Unknown error'));
       }
     }
   });

@@ -17,8 +17,12 @@ const ALLOWED_ADMINS = [
   'dipalishirude7@gmail.com'
 ];
 
+function isAllowed(email) {
+  return email && ALLOWED_ADMINS.includes(email.toLowerCase());
+}
+
 onAuthStateChanged(auth, (user) => {
-  if (!user || !ALLOWED_ADMINS.includes(user.email)) {
+  if (!user || !isAllowed(user.email)) {
     signOut(auth).catch(() => {});
     window.location.href = 'index.html';
   } else {
