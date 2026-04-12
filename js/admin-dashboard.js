@@ -4,19 +4,226 @@ import {
   collection, addDoc, getDocs, getDoc, deleteDoc, doc, updateDoc,
   query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  onAuthStateChanged, signOut,
+  GoogleAuthProvider, signInWithPopup
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { initNavbar, showToast } from './utils.js';
 
 initNavbar();
 
-// Auth guard — redirect if not logged in
+const ALLOWED_ADMINS = [
+  'chinchoretej@gmail.com',
+  'dipalishirude7@gmail.com'
+];
+
 onAuthStateChanged(auth, (user) => {
-  if (!user) {
+  if (!user || !ALLOWED_ADMINS.includes(user.email)) {
+    signOut(auth).catch(() => {});
     window.location.href = 'index.html';
   } else {
     updateOrderCountBadge();
   }
 });
+
+// ---------- Image compression & Google Drive upload helpers ----------
+
+function compressImage(file, maxWidth, maxHeight, quality) {
+  maxWidth = maxWidth || 1200;
+  maxHeight = maxHeight || 1200;
+  quality = quality || 0.7;
+
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var w = img.width;
+        var h = img.height;
+
+        if (w > maxWidth) { h = h * (maxWidth / w); w = maxWidth; }
+        if (h > maxHeight) { w = w * (maxHeight / h); h = maxHeight; }
+
+        canvas.width = Math.round(w);
+        canvas.height = Math.round(h);
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(function(blob) {
+          if (!blob) { reject(new Error('Compression failed')); return; }
+          resolve(blob);
+        }, 'image/webp', quality);
+      };
+      img.onerror = function() { reject(new Error('Failed to load image')); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function() { reject(new Error('Failed to read file')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+var DRIVE_FOLDER_NAME = 'TejDipCreations-Images';
+var driveFolderIdCache = null;
+
+async function getGoogleAccessToken() {
+  var token = sessionStorage.getItem('gdrive_token');
+  var tokenTime = parseInt(sessionStorage.getItem('gdrive_token_time') || '0');
+  if (token && (Date.now() - tokenTime) < 45 * 60 * 1000) {
+    return token;
+  }
+  var provider = new GoogleAuthProvider();
+  provider.addScope('https://www.googleapis.com/auth/drive.file');
+  var result = await signInWithPopup(auth, provider);
+  var credential = GoogleAuthProvider.credentialFromResult(result);
+  if (!credential || !credential.accessToken) throw new Error('Could not get Google Drive access token');
+  sessionStorage.setItem('gdrive_token', credential.accessToken);
+  sessionStorage.setItem('gdrive_token_time', Date.now().toString());
+  return credential.accessToken;
+}
+
+async function getOrCreateDriveFolder(token) {
+  if (driveFolderIdCache) return driveFolderIdCache;
+
+  var searchResp = await fetch(
+    'https://www.googleapis.com/drive/v3/files?q=' +
+    encodeURIComponent("name='" + DRIVE_FOLDER_NAME + "' and mimeType='application/vnd.google-apps.folder' and trashed=false") +
+    '&fields=files(id)',
+    { headers: { 'Authorization': 'Bearer ' + token } }
+  );
+  if (!searchResp.ok) throw new Error('Drive folder search failed');
+  var searchData = await searchResp.json();
+
+  if (searchData.files && searchData.files.length > 0) {
+    driveFolderIdCache = searchData.files[0].id;
+    return driveFolderIdCache;
+  }
+
+  var createResp = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+  });
+  if (!createResp.ok) throw new Error('Drive folder creation failed');
+  var createData = await createResp.json();
+  driveFolderIdCache = createData.id;
+
+  await fetch('https://www.googleapis.com/drive/v3/files/' + driveFolderIdCache + '/permissions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' })
+  });
+
+  return driveFolderIdCache;
+}
+
+async function uploadToGoogleDrive(blob, fileName) {
+  var token = await getGoogleAccessToken();
+  var folderId = await getOrCreateDriveFolder(token);
+
+  var metadata = {
+    name: fileName,
+    mimeType: 'image/webp',
+    parents: [folderId]
+  };
+
+  var form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', blob);
+
+  var uploadResp = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+    { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: form }
+  );
+  if (!uploadResp.ok) {
+    var errText = await uploadResp.text();
+    throw new Error('Drive upload failed (' + uploadResp.status + '): ' + errText);
+  }
+  var fileData = await uploadResp.json();
+  var fileId = fileData.id;
+
+  await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/permissions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' })
+  });
+
+  return 'https://lh3.googleusercontent.com/d/' + fileId;
+}
+
+async function compressAndUpload(file) {
+  var compressed = await compressImage(file);
+  var fileName = 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.webp';
+  return await uploadToGoogleDrive(compressed, fileName);
+}
+
+function setupUploadArea(areaId, inputId, previewId, multiple) {
+  var area = document.getElementById(areaId);
+  var input = document.getElementById(inputId);
+  var preview = document.getElementById(previewId);
+  if (!area || !input) return;
+
+  var files = [];
+
+  area.addEventListener('click', function() { input.click(); });
+
+  area.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    area.classList.add('dragover');
+  });
+  area.addEventListener('dragleave', function() {
+    area.classList.remove('dragover');
+  });
+  area.addEventListener('drop', function(e) {
+    e.preventDefault();
+    area.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  input.addEventListener('change', function() {
+    handleFiles(input.files);
+    input.value = '';
+  });
+
+  function handleFiles(fileList) {
+    if (!multiple) files = [];
+    for (var i = 0; i < fileList.length; i++) {
+      if (fileList[i].type.startsWith('image/')) {
+        files.push(fileList[i]);
+      }
+    }
+    if (!multiple && files.length > 1) files = [files[files.length - 1]];
+    renderPreview();
+  }
+
+  function renderPreview() {
+    if (!preview) return;
+    preview.innerHTML = '';
+    files.forEach(function(f, idx) {
+      var item = document.createElement('div');
+      item.className = 'preview-item';
+      var img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      var btn = document.createElement('button');
+      btn.className = 'remove-preview';
+      btn.innerHTML = '&#10005;';
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        files.splice(idx, 1);
+        renderPreview();
+      });
+      item.appendChild(img);
+      item.appendChild(btn);
+      preview.appendChild(item);
+    });
+  }
+
+  return { getFiles: function() { return files; }, clear: function() { files = []; if (preview) preview.innerHTML = ''; } };
+}
+
+var mainImageUploader = setupUploadArea('mainImageArea', 'prodImageFile', 'mainImagePreview', false);
+var extraImagesUploader = setupUploadArea('extraImagesArea', 'prodImagesFiles', 'extraImagesPreview', true);
+var catImageUploader = setupUploadArea('catImageArea', 'catImageFile', 'catImagePreview', false);
 
 // ---------- Tab switching ----------
 const tabs = document.querySelectorAll('.admin-tab');
@@ -38,6 +245,8 @@ tabs.forEach(tab => {
 
 // ---------- Logout ----------
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+  sessionStorage.removeItem('gdrive_token');
+  sessionStorage.removeItem('gdrive_token_time');
   await signOut(auth);
   window.location.href = 'index.html';
 });
@@ -70,25 +279,53 @@ if (addForm) {
     const category = document.getElementById('prodCategory').value;
     const subcategory = document.getElementById('prodSubcategory').value;
     const price = Number(document.getElementById('prodPrice').value);
-    const image = document.getElementById('prodImage').value.trim();
-    const imagesRaw = document.getElementById('prodImages').value.trim();
     const video = document.getElementById('prodVideo').value.trim();
     const description = document.getElementById('prodDesc').value.trim();
 
-    const images = imagesRaw
-      ? imagesRaw.split(',').map(s => s.trim()).filter(Boolean)
-      : [];
+    var mainFiles = mainImageUploader ? mainImageUploader.getFiles() : [];
+    var extraFiles = extraImagesUploader ? extraImagesUploader.getFiles() : [];
+
+    if (mainFiles.length === 0) {
+      showToast('Please select a main image', 'error');
+      return;
+    }
+
+    var submitBtn = addForm.querySelector('button[type="submit"]');
+    var origText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Compressing & uploading images...';
 
     try {
+      showToast('Compressing images...', 'success');
+      var mainProgress = document.getElementById('mainImageProgress');
+      if (mainProgress) { mainProgress.style.display = 'block'; mainProgress.querySelector('.progress-bar').style.width = '50%'; }
+
+      var image = await compressAndUpload(mainFiles[0]);
+
+      if (mainProgress) mainProgress.querySelector('.progress-bar').style.width = '100%';
+
+      var images = [];
+      if (extraFiles.length > 0) {
+        var extraProgress = document.getElementById('extraImagesProgress');
+        if (extraProgress) extraProgress.style.display = 'block';
+
+        for (var i = 0; i < extraFiles.length; i++) {
+          if (extraProgress) extraProgress.querySelector('.progress-bar').style.width = Math.round(((i + 1) / extraFiles.length) * 100) + '%';
+          submitBtn.textContent = 'Uploading image ' + (i + 1) + ' of ' + extraFiles.length + '...';
+          var url = await compressAndUpload(extraFiles[i]);
+          images.push(url);
+        }
+      }
+
       await addDoc(collection(db, 'products'), {
-        name,
-        category,
-        subcategory,
-        price,
-        image,
-        images,
+        name: name,
+        category: category,
+        subcategory: subcategory,
+        price: price,
+        image: image,
+        images: images,
         video: video || null,
-        description,
+        description: description,
         rating: 4.5,
         reviewCount: 0,
         createdAt: serverTimestamp()
@@ -96,9 +333,18 @@ if (addForm) {
 
       showToast('Product added successfully!', 'success');
       addForm.reset();
+      if (mainImageUploader) mainImageUploader.clear();
+      if (extraImagesUploader) extraImagesUploader.clear();
+      if (mainProgress) { mainProgress.style.display = 'none'; mainProgress.querySelector('.progress-bar').style.width = '0%'; }
+      var ep = document.getElementById('extraImagesProgress');
+      if (ep) { ep.style.display = 'none'; ep.querySelector('.progress-bar').style.width = '0%'; }
+
     } catch (err) {
       console.error('Error adding product:', err);
-      showToast('Failed to add product', 'error');
+      showToast('Failed to add product: ' + err.message, 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = origText;
     }
   });
 }
@@ -412,13 +658,15 @@ async function openEditModal(productId) {
 
     var inputStyle = 'width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--input-bg);color:var(--text);';
 
+    var currentImgThumb = p.image ? '<img src="' + p.image + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1.5px solid var(--border);">' : '<span style="font-size:0.82rem;color:var(--text-light);">No image</span>';
+
     overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:12px;padding:1.5rem;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,0.2);">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><h2 style="font-size:1.2rem;">Edit Product</h2><button id="editClose" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text);">&#10005;</button></div>'
       + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Name</label><input id="editName" value="' + (p.name || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
       + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Category</label><select id="editCategory" style="' + inputStyle + '">' + catOpts + '</select></div>'
       + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Subcategory</label><select id="editSubcategory" style="' + inputStyle + '"><option value="">Select Subcategory</option></select></div>'
       + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Price</label><input id="editPrice" type="number" value="' + (p.price || '') + '" style="' + inputStyle + '"></div>'
-      + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Image URL</label><input id="editImage" value="' + (p.image || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
+      + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Current Image</label><div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:0.5rem;">' + currentImgThumb + '</div><label style="font-size:0.82rem;color:var(--text-light);display:block;margin-bottom:0.3rem;">Upload new image to replace (optional)</label><input id="editImageFile" type="file" accept="image/*" style="font-size:0.85rem;"></div>'
       + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Video URL</label><input id="editVideo" value="' + (p.video || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
       + '<div style="margin-bottom:1rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Description</label><textarea id="editDesc" rows="3" style="' + inputStyle + 'resize:vertical;">' + (p.description || '') + '</textarea></div>'
       + '<button id="editSave" style="width:100%;background:var(--primary);color:#fff;padding:0.7rem;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;">Save Changes</button>'
@@ -438,22 +686,35 @@ async function openEditModal(productId) {
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
 
     document.getElementById('editSave').addEventListener('click', async function() {
+      var saveBtn = document.getElementById('editSave');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
       try {
-        await updateDoc(doc(db, 'products', productId), {
+        var updateData = {
           name: document.getElementById('editName').value.trim(),
           category: document.getElementById('editCategory').value,
           subcategory: document.getElementById('editSubcategory').value,
           price: Number(document.getElementById('editPrice').value),
-          image: document.getElementById('editImage').value.trim(),
           video: document.getElementById('editVideo').value.trim() || null,
           description: document.getElementById('editDesc').value.trim()
-        });
+        };
+
+        var newImageFile = document.getElementById('editImageFile').files[0];
+        if (newImageFile) {
+          saveBtn.textContent = 'Compressing & uploading image...';
+          updateData.image = await compressAndUpload(newImageFile);
+        }
+
+        await updateDoc(doc(db, 'products', productId), updateData);
         showToast('Product updated!', 'success');
         overlay.remove();
         loadAdminProducts();
       } catch (err) {
         console.error('Update error:', err);
         showToast('Failed to update product', 'error');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
       }
     });
   } catch (err) {
@@ -672,10 +933,12 @@ async function loadCategories() {
           overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;';
           var inputStyle = 'width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--input-bg);color:var(--text);';
 
+          var catEditImgThumb = c.image ? '<img src="' + (c.image.startsWith('assets/') ? '../' + c.image : c.image) + '" style="width:50px;height:50px;object-fit:cover;border-radius:6px;border:1.5px solid var(--border);">' : '';
+
           overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:12px;padding:1.5rem;width:100%;max-width:400px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">'
             + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><h2 style="font-size:1.1rem;">Edit Category</h2><button id="catEditClose" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text);">&#10005;</button></div>'
             + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Name</label><input id="editCatName" value="' + (c.name || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
-            + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Image URL</label><input id="editCatImage" value="' + (c.image || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
+            + '<div style="margin-bottom:0.8rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Image</label>' + (catEditImgThumb ? '<div style="margin-bottom:0.4rem;">' + catEditImgThumb + '</div>' : '') + '<label style="font-size:0.82rem;color:var(--text-light);display:block;margin-bottom:0.3rem;">Upload new image (optional)</label><input id="editCatImageFile" type="file" accept="image/*" style="font-size:0.85rem;"></div>'
             + '<div style="margin-bottom:1rem;"><label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Description</label><input id="editCatDesc" value="' + (c.description || '').replace(/"/g, '&quot;') + '" style="' + inputStyle + '"></div>'
             + '<button id="catEditSave" style="width:100%;padding:0.7rem;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:0.95rem;font-weight:600;cursor:pointer;">Save Changes</button>'
             + '</div>';
@@ -685,13 +948,22 @@ async function loadCategories() {
           overlay.addEventListener('click', function(ev) { if (ev.target === overlay) overlay.remove(); });
 
           overlay.querySelector('#catEditSave').addEventListener('click', async function() {
+            var saveBtn = document.getElementById('catEditSave');
             var updatedData = {
               name: document.getElementById('editCatName').value.trim(),
-              image: document.getElementById('editCatImage').value.trim(),
               description: document.getElementById('editCatDesc').value.trim()
             };
             if (!updatedData.name) { showToast('Name is required', 'error'); return; }
+
+            saveBtn.disabled = true;
+
             try {
+              var newCatImg = document.getElementById('editCatImageFile').files[0];
+              if (newCatImg) {
+                saveBtn.textContent = 'Uploading image...';
+                updatedData.image = await compressAndUpload(newCatImg);
+              }
+
               await updateDoc(doc(db, 'categories', catId), updatedData);
               showToast('Category updated!', 'success');
               overlay.remove();
@@ -700,6 +972,8 @@ async function loadCategories() {
             } catch (err) {
               console.error('Category update error:', err);
               showToast('Failed to update', 'error');
+              saveBtn.disabled = false;
+              saveBtn.textContent = 'Save Changes';
             }
           });
         } catch (err) {
@@ -737,23 +1011,36 @@ if (catForm) {
   catForm.addEventListener('submit', async function(e) {
     e.preventDefault();
     var name = document.getElementById('catName').value.trim();
-    var image = document.getElementById('catImage').value.trim();
     var description = document.getElementById('catDesc').value.trim();
     if (!name) return;
+
+    var submitBtn = catForm.querySelector('button[type="submit"]');
+    var origText = submitBtn.textContent;
+    submitBtn.disabled = true;
+
     try {
       var data = { name: name, subcategories: [], createdAt: serverTimestamp() };
-      if (image) data.image = image;
+
+      var catFiles = catImageUploader ? catImageUploader.getFiles() : [];
+      if (catFiles.length > 0) {
+        submitBtn.textContent = 'Uploading image...';
+        data.image = await compressAndUpload(catFiles[0]);
+      }
+
       if (description) data.description = description;
       await addDoc(collection(db, 'categories'), data);
       showToast('Category added!', 'success');
       document.getElementById('catName').value = '';
-      document.getElementById('catImage').value = '';
       document.getElementById('catDesc').value = '';
+      if (catImageUploader) catImageUploader.clear();
       loadCategories();
       loadCategoryDropdowns();
     } catch (err) {
       console.error('Add category error:', err);
       showToast('Failed to add category', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = origText;
     }
   });
 }

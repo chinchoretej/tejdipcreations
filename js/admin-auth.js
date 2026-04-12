@@ -1,48 +1,69 @@
-// Admin login page logic
 import { auth } from './firebase-config.js';
-import { signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { initNavbar } from './utils.js';
 
 initNavbar();
 
-const loginForm = document.getElementById('loginForm');
-const errorMsg = document.getElementById('errorMsg');
+const ALLOWED_ADMINS = [
+  'chinchoretej@gmail.com',
+  'dipalishirude7@gmail.com'
+];
 
-// If already logged in, redirect to dashboard
+const errorMsg = document.getElementById('errorMsg');
+const googleBtn = document.getElementById('googleSignInBtn');
+
 onAuthStateChanged(auth, (user) => {
-  if (user) {
+  if (user && ALLOWED_ADMINS.includes(user.email)) {
     window.location.href = 'dashboard.html';
+  } else if (user) {
+    signOut(auth);
+    showError('This Google account is not authorized as admin.');
   }
 });
 
-if (loginForm) {
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    errorMsg.classList.remove('show');
-
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      window.location.href = 'dashboard.html';
-    } catch (err) {
-      console.error('Login error:', err);
-      errorMsg.textContent = getErrorMessage(err.code);
-      errorMsg.classList.add('show');
-    }
-  });
+function showError(msg) {
+  if (!errorMsg) return;
+  errorMsg.textContent = msg;
+  errorMsg.classList.add('show');
 }
 
-function getErrorMessage(code) {
-  switch (code) {
-    case 'auth/user-not-found':
-    case 'auth/wrong-password':
-    case 'auth/invalid-credential':
-      return 'Invalid email or password.';
-    case 'auth/too-many-requests':
-      return 'Too many attempts. Try again later.';
-    default:
-      return 'Login failed. Please try again.';
-  }
+if (googleBtn) {
+  googleBtn.addEventListener('click', async () => {
+    errorMsg.classList.remove('show');
+    const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/drive.file');
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const email = result.user.email;
+
+      if (!ALLOWED_ADMINS.includes(email)) {
+        await signOut(auth);
+        showError('Access denied. "' + email + '" is not an authorized admin account.');
+        return;
+      }
+
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential && credential.accessToken) {
+        sessionStorage.setItem('gdrive_token', credential.accessToken);
+        sessionStorage.setItem('gdrive_token_time', Date.now().toString());
+      }
+
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      console.error('Google sign-in error:', err);
+      if (err.code === 'auth/popup-closed-by-user') {
+        showError('Sign-in cancelled. Please try again.');
+      } else if (err.code === 'auth/popup-blocked') {
+        showError('Pop-up blocked. Please allow pop-ups for this site.');
+      } else {
+        showError('Sign-in failed. Please try again.');
+      }
+    }
+  });
 }
