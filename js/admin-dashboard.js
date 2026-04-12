@@ -161,6 +161,12 @@ async function compressAndUpload(file) {
   return await uploadToGoogleDrive(compressed, fileName);
 }
 
+function cloneFile(file) {
+  return file.arrayBuffer().then(function(buf) {
+    return new File([buf], file.name, { type: file.type, lastModified: file.lastModified });
+  });
+}
+
 function setupUploadArea(areaId, inputId, previewId, multiple) {
   var area = document.getElementById(areaId);
   var input = document.getElementById(inputId);
@@ -181,23 +187,28 @@ function setupUploadArea(areaId, inputId, previewId, multiple) {
   area.addEventListener('drop', function(e) {
     e.preventDefault();
     area.classList.remove('dragover');
-    handleFiles(e.dataTransfer.files);
+    handleFiles(Array.from(e.dataTransfer.files));
   });
 
   input.addEventListener('change', function() {
-    handleFiles(input.files);
+    var picked = Array.from(input.files);
     input.value = '';
+    handleFiles(picked);
   });
 
   function handleFiles(fileList) {
     if (!multiple) files = [];
+    var clonePromises = [];
     for (var i = 0; i < fileList.length; i++) {
       if (fileList[i].type.startsWith('image/')) {
-        files.push(fileList[i]);
+        clonePromises.push(cloneFile(fileList[i]));
       }
     }
-    if (!multiple && files.length > 1) files = [files[files.length - 1]];
-    renderPreview();
+    Promise.all(clonePromises).then(function(cloned) {
+      cloned.forEach(function(f) { files.push(f); });
+      if (!multiple && files.length > 1) files = [files[files.length - 1]];
+      renderPreview();
+    });
   }
 
   function renderPreview() {
