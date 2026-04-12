@@ -2,7 +2,7 @@
 import { db, auth } from './firebase-config.js';
 import {
   collection, addDoc, getDocs, getDoc, deleteDoc, doc, updateDoc,
-  query, orderBy, serverTimestamp
+  query, orderBy, limit, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   onAuthStateChanged, signOut,
@@ -12,21 +12,21 @@ import { initNavbar, showToast } from './utils.js';
 
 initNavbar();
 
-const ALLOWED_ADMINS = [
-  'chinchoretej@gmail.com',
-  'dipalishirude7@gmail.com'
-];
-
-function isAllowed(email) {
-  return email && ALLOWED_ADMINS.includes(email.toLowerCase());
-}
-
-onAuthStateChanged(auth, (user) => {
-  if (!user || !isAllowed(user.email)) {
-    signOut(auth).catch(() => {});
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
     window.location.href = 'index.html';
-  } else {
+    return;
+  }
+  try {
+    await getDocs(query(collection(db, 'categories'), limit(1)));
     updateOrderCountBadge();
+  } catch (e) {
+    if (e.code === 'permission-denied' || (e.message && e.message.indexOf('permission') !== -1)) {
+      signOut(auth).catch(function() {});
+      window.location.href = 'index.html';
+    } else {
+      updateOrderCountBadge();
+    }
   }
 });
 

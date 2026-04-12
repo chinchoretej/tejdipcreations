@@ -1,22 +1,14 @@
-import { auth } from './firebase-config.js';
+import { auth, db } from './firebase-config.js';
 import {
   GoogleAuthProvider,
   signInWithPopup,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { collection, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { initNavbar } from './utils.js';
 
 initNavbar();
-
-const ALLOWED_ADMINS = [
-  'chinchoretej@gmail.com',
-  'dipalishirude7@gmail.com'
-];
-
-function isAllowed(email) {
-  return email && ALLOWED_ADMINS.includes(email.toLowerCase());
-}
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
@@ -24,10 +16,24 @@ googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
 const errorMsg = document.getElementById('errorMsg');
 const googleBtn = document.getElementById('googleSignInBtn');
 
-onAuthStateChanged(auth, (user) => {
-  if (user && isAllowed(user.email)) {
+async function checkAdminAccess() {
+  try {
+    await getDocs(query(collection(db, 'categories'), limit(1)));
+    return true;
+  } catch (e) {
+    if (e.code === 'permission-denied' || (e.message && e.message.indexOf('permission') !== -1)) {
+      return false;
+    }
+    return true;
+  }
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return;
+  var allowed = await checkAdminAccess();
+  if (allowed) {
     window.location.href = 'dashboard.html';
-  } else if (user) {
+  } else {
     signOut(auth);
     showError('This Google account (' + user.email + ') is not authorized as admin.');
   }
@@ -46,7 +52,8 @@ if (googleBtn) {
     try {
       const result = await signInWithPopup(auth, googleProvider);
 
-      if (!isAllowed(result.user.email)) {
+      var allowed = await checkAdminAccess();
+      if (!allowed) {
         await signOut(auth);
         showError('Access denied. "' + result.user.email + '" is not an authorized admin account.');
         return;
