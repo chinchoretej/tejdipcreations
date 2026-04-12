@@ -1301,11 +1301,33 @@ input, textarea, select {
   }
 
   .menu-toggle {
-    display: none;
+    display: flex;
   }
 
   .nav-links {
     display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    flex-direction: column;
+    padding: 1rem 1.5rem;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+
+  .nav-links.open {
+    display: flex;
+  }
+
+  body:has(.bottom-nav) .menu-toggle {
+    display: none;
+  }
+
+  body:has(.bottom-nav) .nav-links {
+    display: none !important;
   }
 
   .container {
