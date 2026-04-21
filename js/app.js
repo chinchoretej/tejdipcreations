@@ -8,6 +8,17 @@ const grid = document.getElementById('productsGrid');
 const searchInput = document.getElementById('searchInput');
 const sortSelect = document.getElementById('sortSelect');
 const mirrorBtn = document.getElementById('mirrorBtn');
+const aboutBtn = document.getElementById('aboutUsBtn');
+const aboutModal = document.getElementById('aboutModal');
+const aboutClose = document.getElementById('aboutClose');
+
+if (aboutBtn && aboutModal) {
+  aboutBtn.addEventListener('click', () => aboutModal.classList.add('show'));
+  aboutClose.addEventListener('click', () => aboutModal.classList.remove('show'));
+  aboutModal.addEventListener('click', (e) => {
+    if (e.target === aboutModal) aboutModal.classList.remove('show');
+  });
+}
 
 let allProducts = [];
 let searchTerm = '';
