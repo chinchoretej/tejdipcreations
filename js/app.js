@@ -1,98 +1,115 @@
-// Home page logic
 import { db } from './firebase-config.js';
-import { collection, getDocs, query, limit, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { initNavbar, createProductCard } from './utils.js';
 
 initNavbar();
 
-const FALLBACK_CATEGORIES = [
-  { name: 'Jewelry', image: 'assets/Jwelery.jpg', description: 'Earrings, Necklaces, Bracelets, Bangles & Hair Accessories', subcategories: ['Earrings', 'Necklaces', 'Bracelets', 'Bangles', 'Hair Accessories'] },
-  { name: 'Pooja Essentials', image: 'assets/Pooja Essential.jpg', description: 'Decorative Plates, Kalash & Saptapadi Supari', subcategories: ['Decorative Plates', 'Kalash', 'Saptapadi Supari'] },
-  { name: 'Handmade Crafts', image: 'assets/Handmade arts.jpg', description: 'Sticks Decor, Wall Art & Mini Crafts', subcategories: ['Sticks Decor', 'Wall Art', 'Mini Crafts'] }
-];
+const grid = document.getElementById('productsGrid');
+const searchInput = document.getElementById('searchInput');
+const sortSelect = document.getElementById('sortSelect');
+const mirrorBtn = document.getElementById('mirrorBtn');
 
-async function loadCategories() {
-  const catGrid = document.getElementById('categoriesGrid');
-  if (!catGrid) return;
+let allProducts = [];
+let searchTerm = '';
+let sortMode = 'default';
 
-  try {
-    const snapshot = await getDocs(collection(db, 'categories'));
-    let cats = [];
-    snapshot.forEach(d => cats.push(d.data()));
-    cats.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    if (cats.length === 0) cats = FALLBACK_CATEGORIES;
-
-    catGrid.innerHTML = '';
-    cats.forEach(cat => {
-      const card = document.createElement('a');
-      card.href = `products.html?category=${encodeURIComponent(cat.name)}`;
-      card.className = 'category-card';
-      const img = cat.image || `https://placehold.co/400x300/e8c8ce/6d6875?text=${encodeURIComponent(cat.name)}`;
-      const desc = cat.description || (cat.subcategories ? cat.subcategories.join(', ') : '');
-      card.innerHTML = `
-        <img src="${img}" alt="${cat.name}" class="card-img"
-             onerror="this.src='https://placehold.co/400x300/e8c8ce/6d6875?text=${encodeURIComponent(cat.name)}'">
-        <div class="card-body">
-          <h3>${cat.name}</h3>
-          <p>${desc}</p>
-        </div>
-      `;
-      catGrid.appendChild(card);
-    });
-  } catch (err) {
-    console.error('Error loading categories:', err);
-    catGrid.innerHTML = '';
-    FALLBACK_CATEGORIES.forEach(cat => {
-      const card = document.createElement('a');
-      card.href = `products.html?category=${encodeURIComponent(cat.name)}`;
-      card.className = 'category-card';
-      card.innerHTML = `
-        <img src="${cat.image}" alt="${cat.name}" class="card-img"
-             onerror="this.src='https://placehold.co/400x300/e8c8ce/6d6875?text=${encodeURIComponent(cat.name)}'">
-        <div class="card-body">
-          <h3>${cat.name}</h3>
-          <p>${cat.description}</p>
-        </div>
-      `;
-      catGrid.appendChild(card);
-    });
-  }
+if (searchInput) {
+  searchInput.addEventListener('input', function () {
+    searchTerm = this.value.trim().toLowerCase();
+    renderProducts();
+  });
 }
 
-loadCategories();
+if (sortSelect) {
+  sortSelect.addEventListener('change', function () {
+    sortMode = this.value;
+    renderProducts();
+  });
+}
 
-// Render featured products (latest 4)
-async function loadFeatured() {
-  const grid = document.getElementById('featuredGrid');
-  if (!grid) return;
+if (mirrorBtn) {
+  mirrorBtn.addEventListener('click', function () {
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.value = '';
+      searchTerm = '';
+      renderProducts();
+    }
+  });
+}
 
+async function loadProducts() {
   try {
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'), limit(4));
+    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
 
-    grid.innerHTML = '';
-
-    if (snapshot.empty) {
-      grid.innerHTML = `
-        <div class="empty-state" style="grid-column: 1/-1;">
-          <div class="icon">&#128722;</div>
-          <p>No products yet. Add some from the admin panel!</p>
-        </div>`;
-      return;
-    }
-
+    allProducts = [];
     snapshot.forEach(doc => {
-      const product = { id: doc.id, ...doc.data() };
-      grid.appendChild(createProductCard(product));
+      allProducts.push({ id: doc.id, ...doc.data() });
     });
+
+    renderProducts();
   } catch (err) {
     console.error('Error loading products:', err);
-    grid.innerHTML = `
-      <div class="empty-state" style="grid-column: 1/-1;">
-        <div class="icon">&#9888;</div>
-        <p>Could not load products. Please check Firebase configuration.</p>
-      </div>`;
+    if (grid) {
+      grid.innerHTML = `
+        <div class="empty-state" style="grid-column: 1/-1;">
+          <div class="icon">&#9888;</div>
+          <p>Could not load products. Please check Firebase configuration.</p>
+        </div>`;
+    }
   }
 }
 
-loadFeatured();
+function renderProducts() {
+  if (!grid) return;
+
+  let filtered = allProducts;
+
+  if (searchTerm) {
+    filtered = filtered.filter(function (p) {
+      return (p.name || '').toLowerCase().includes(searchTerm)
+        || (p.description || '').toLowerCase().includes(searchTerm)
+        || (p.category || '').toLowerCase().includes(searchTerm)
+        || (p.subcategory || '').toLowerCase().includes(searchTerm);
+    });
+  }
+
+  switch (sortMode) {
+    case 'low-high':
+      filtered = filtered.slice().sort((a, b) => (a.price || 0) - (b.price || 0));
+      break;
+    case 'high-low':
+      filtered = filtered.slice().sort((a, b) => (b.price || 0) - (a.price || 0));
+      break;
+    case 'category-az':
+      filtered = filtered.slice().sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+      break;
+    case 'category-za':
+      filtered = filtered.slice().sort((a, b) => (b.category || '').localeCompare(a.category || ''));
+      break;
+    case 'subcategory-az':
+      filtered = filtered.slice().sort((a, b) => (a.subcategory || '').localeCompare(b.subcategory || ''));
+      break;
+    case 'subcategory-za':
+      filtered = filtered.slice().sort((a, b) => (b.subcategory || '').localeCompare(a.subcategory || ''));
+      break;
+  }
+
+  grid.innerHTML = '';
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column: 1/-1;">
+        <div class="icon">&#128722;</div>
+        <p>No products found.</p>
+      </div>`;
+    return;
+  }
+
+  filtered.forEach(function (product) {
+    grid.appendChild(createProductCard(product));
+  });
+}
+
+loadProducts();

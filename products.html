@@ -20,7 +20,6 @@
       <a href="index.html" class="logo"><img src="assets/logo-sm.png" alt="TejDipCreations" class="logo-img">TejDip<span>Creations</span></a>
       <ul class="nav-links">
         <li><a href="index.html">Home</a></li>
-        <li><a href="products.html" class="active">Shop</a></li>
       </ul>
       <div class="nav-actions">
         <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">&#9790;</button>
@@ -38,18 +37,24 @@
   <!-- Filter + Products -->
   <section class="section">
     <div class="container">
-      <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
-        <input type="text" id="searchInput" placeholder="Search Products..." style="flex:1;min-width:140px;padding:0.65rem 1rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;background:var(--input-bg);color:var(--text);">
-        <select id="filterCategory" style="padding:0.65rem 0.8rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;background:var(--input-bg);color:var(--text);cursor:pointer;">
-          <option value="all">All Categories</option>
-        </select>
-        <select id="filterSubcategory" style="padding:0.65rem 0.8rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;background:var(--input-bg);color:var(--text);cursor:pointer;display:none;">
-          <option value="all">All Subcategories</option>
-        </select>
-        <select id="sortSelect" style="padding:0.65rem 0.8rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;background:var(--input-bg);color:var(--text);cursor:pointer;">
+      <div class="search-hero" style="position:relative;top:0;z-index:auto;border-bottom:none;padding:0 0 0.8rem;">
+        <div class="search-bar-wrap" style="padding:0;">
+          <svg class="search-bar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" placeholder="Search products..." autocomplete="off">
+          <button class="mirror-btn" id="mirrorBtn" aria-label="Visual search">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="products-toolbar">
+        <select id="sortSelect">
           <option value="default">Sort: Default</option>
-          <option value="low-high">Price: Low → High</option>
-          <option value="high-low">Price: High → Low</option>
+          <option value="low-high">Price: Low &rarr; High</option>
+          <option value="high-low">Price: High &rarr; Low</option>
+          <option value="category-az">Category: A &rarr; Z</option>
+          <option value="category-za">Category: Z &rarr; A</option>
+          <option value="subcategory-az">Subcategory: A &rarr; Z</option>
+          <option value="subcategory-za">Subcategory: Z &rarr; A</option>
         </select>
       </div>
       <div class="products-grid" id="productsGrid">
@@ -72,10 +77,6 @@
     <a href="index.html">
       <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
       Home
-    </a>
-    <a href="products.html" class="active">
-      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg></span>
-      Shop
     </a>
     <a href="https://wa.me/919168140277?text=Hi!%20I%20have%20a%20question%20about%20your%20products." target="_blank" rel="noopener">
       <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#25D366" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></span>
