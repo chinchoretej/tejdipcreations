@@ -18,6 +18,16 @@ if (aboutBtn && aboutModal) {
   aboutModal.addEventListener('click', (e) => {
     if (e.target === aboutModal) aboutModal.classList.remove('show');
   });
+
+  aboutModal.querySelectorAll('.lang-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const lang = tab.dataset.lang;
+      aboutModal.querySelectorAll('.lang-tab').forEach(t => t.classList.remove('active'));
+      aboutModal.querySelectorAll('.lang-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      aboutModal.querySelector(`.lang-content[data-lang="${lang}"]`).classList.add('active');
+    });
+  });
 }
 
 let allProducts = [];

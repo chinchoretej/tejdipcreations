@@ -446,6 +446,63 @@ input, textarea, select {
   font-size: 0.95rem;
 }
 
+.modal-about {
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.lang-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.lang-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 50px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.lang-tab:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.lang-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.lang-tab.active svg {
+  stroke: #fff;
+}
+
+.lang-content {
+  display: none;
+}
+
+.lang-content.active {
+  display: block;
+}
+
+.lang-content p {
+  color: var(--text-light);
+  line-height: 1.7;
+  margin-bottom: 0.8rem;
+  font-size: 0.93rem;
+}
+
 .about-details {
   display: flex;
   flex-direction: column;
