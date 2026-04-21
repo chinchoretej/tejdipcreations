@@ -741,6 +741,11 @@ input, textarea, select {
   width: 100%;
   height: 220px;
   object-fit: cover;
+  transition: transform 0.35s ease;
+}
+
+.product-card:hover .card-img {
+  transform: scale(1.08);
 }
 
 .product-card .card-body {
