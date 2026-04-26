@@ -33,15 +33,27 @@ async function loadProduct() {
     container.innerHTML = `
       <!-- Gallery -->
       <div class="gallery">
-        <img src="${images[0]}" alt="${product.name}" class="gallery-main" id="mainImage"
-             onerror="this.src='https://placehold.co/600x400/e8c8ce/6d6875?text=No+Image'">
-        ${images.length > 1 ? `
-          <div class="gallery-thumbs">
+        <div class="gallery-slider" id="gallerySlider">
+          <div class="gallery-track" id="galleryTrack">
             ${images.map((img, i) => `
-              <img src="${img}" alt="Thumbnail ${i + 1}" class="${i === 0 ? 'active' : ''}"
-                   onclick="document.getElementById('mainImage').src=this.src;
-                   document.querySelectorAll('.gallery-thumbs img').forEach(t=>t.classList.remove('active'));
-                   this.classList.add('active');"
+              <div class="gallery-slide">
+                <img src="${img}" alt="${product.name} - Image ${i + 1}"
+                     onerror="this.src='https://placehold.co/600x400/e8c8ce/6d6875?text=No+Image'">
+              </div>
+            `).join('')}
+          </div>
+          ${images.length > 1 ? `
+            <button class="gallery-arrow gallery-prev" id="galleryPrev" aria-label="Previous image">&#10094;</button>
+            <button class="gallery-arrow gallery-next" id="galleryNext" aria-label="Next image">&#10095;</button>
+            <div class="gallery-dots" id="galleryDots">
+              ${images.map((_, i) => `<span class="gallery-dot${i === 0 ? ' active' : ''}" data-index="${i}"></span>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+        ${images.length > 1 ? `
+          <div class="gallery-thumbs" id="galleryThumbs">
+            ${images.map((img, i) => `
+              <img src="${img}" alt="Thumbnail ${i + 1}" class="${i === 0 ? 'active' : ''}" data-index="${i}"
                    onerror="this.style.display='none'">
             `).join('')}
           </div>
@@ -70,6 +82,86 @@ async function loadProduct() {
         <a href="checkout.html?id=${product.id}" class="btn-primary">Buy Now &rarr;</a>
       </div>
     `;
+
+    // --- Swipeable gallery logic ---
+    if (images.length > 1) {
+      const track = document.getElementById('galleryTrack');
+      const slider = document.getElementById('gallerySlider');
+      const dots = document.querySelectorAll('.gallery-dot');
+      const thumbs = document.querySelectorAll('#galleryThumbs img');
+      const prevBtn = document.getElementById('galleryPrev');
+      const nextBtn = document.getElementById('galleryNext');
+      let current = 0;
+      const total = images.length;
+
+      function goToSlide(index) {
+        current = (index + total) % total;
+        track.style.transform = `translateX(-${current * 100}%)`;
+        dots.forEach((d, i) => d.classList.toggle('active', i === current));
+        thumbs.forEach((t, i) => t.classList.toggle('active', i === current));
+        thumbs[current]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+
+      prevBtn.addEventListener('click', () => goToSlide(current - 1));
+      nextBtn.addEventListener('click', () => goToSlide(current + 1));
+      dots.forEach(dot => dot.addEventListener('click', () => goToSlide(+dot.dataset.index)));
+      thumbs.forEach(thumb => thumb.addEventListener('click', () => goToSlide(+thumb.dataset.index)));
+
+      // Touch swipe
+      let startX = 0, startY = 0, diffX = 0, swiping = false;
+      slider.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        swiping = true;
+        track.style.transition = 'none';
+      }, { passive: true });
+
+      slider.addEventListener('touchmove', (e) => {
+        if (!swiping) return;
+        diffX = e.touches[0].clientX - startX;
+        const diffY = e.touches[0].clientY - startY;
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+          track.style.transform = `translateX(calc(-${current * 100}% + ${diffX}px))`;
+        }
+      }, { passive: true });
+
+      slider.addEventListener('touchend', () => {
+        if (!swiping) return;
+        swiping = false;
+        track.style.transition = '';
+        if (diffX > 50) goToSlide(current - 1);
+        else if (diffX < -50) goToSlide(current + 1);
+        else goToSlide(current);
+        diffX = 0;
+      });
+
+      // Mouse drag for desktop
+      let mouseDown = false, mouseStartX = 0, mouseDiff = 0;
+      slider.addEventListener('mousedown', (e) => {
+        mouseDown = true;
+        mouseStartX = e.clientX;
+        track.style.transition = 'none';
+        slider.style.cursor = 'grabbing';
+        e.preventDefault();
+      });
+      slider.addEventListener('mousemove', (e) => {
+        if (!mouseDown) return;
+        mouseDiff = e.clientX - mouseStartX;
+        track.style.transform = `translateX(calc(-${current * 100}% + ${mouseDiff}px))`;
+      });
+      const endDrag = () => {
+        if (!mouseDown) return;
+        mouseDown = false;
+        track.style.transition = '';
+        slider.style.cursor = '';
+        if (mouseDiff > 50) goToSlide(current - 1);
+        else if (mouseDiff < -50) goToSlide(current + 1);
+        else goToSlide(current);
+        mouseDiff = 0;
+      };
+      slider.addEventListener('mouseup', endDrag);
+      slider.addEventListener('mouseleave', endDrag);
+    }
   } catch (err) {
     console.error('Error loading product:', err);
     container.innerHTML = `
